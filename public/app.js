@@ -149,6 +149,11 @@ async function loadSession() {
       return;
     }
   } catch {
+    if (window.location.protocol !== "file:") {
+      localStorage.removeItem(SESSION_KEY);
+      elements.loginScreen.classList.remove("hidden");
+      return;
+    }
     const user = localStorage.getItem(SESSION_KEY);
     if (user && USERS[user]) {
       await load();
@@ -906,6 +911,22 @@ async function generate() {
     renderAll();
     return;
   } catch (error) {
+    if (/Нужно войти/i.test(error.message)) {
+      localStorage.removeItem(SESSION_KEY);
+      elements.loginScreen.classList.remove("hidden");
+      client.finalOutput = "Нужно заново войти в аккаунт. После входа нажмите “Сгенерировать текст” еще раз.";
+      client.process = [
+        {
+          title: "Нужно войти",
+          body: "Серверная сессия закончилась после деплоя. Локальная память браузера больше не считается настоящим входом.",
+          warning: true
+        }
+      ];
+      fillForm(client);
+      persistOnly();
+      renderAll();
+      return;
+    }
     client.finalOutput = `AI-генерация пока не подключена.\n\nПричина: ${error.message}\n\nЧто нужно сделать:\n1. В Render открыть сервис ad-client-studio.\n2. Зайти в Environment.\n3. Добавить переменную OPENAI_API_KEY.\n4. Перезапустить сервис.\n\nДо этого сайт не должен притворяться, что реально проверил интернет и написал сильный текст.`;
     client.process = [
       {
