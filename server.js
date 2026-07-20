@@ -18,6 +18,51 @@ const USERS = {
 
 const sessions = new Map();
 
+const COPY_RULES = `
+Ты пишешь рекламные тексты на русском/иврите для performance ads.
+
+Главные правила:
+- Перед текстом используй язык ниши: реальные слова клиентов, услуг, симптомов, этапов, страхов.
+- Один текст = один угол, одна проблема, одна ситуация. Не смешивай боли, зоны и услуги.
+- Всегда прогоняй текст через фильтр корявых фраз. Убирай канцелярит, дословные переводы, "с помощью остеопатии", "индивидуальный подход", "комплексное решение", "в разы", "навсегда", "гарантированно".
+- Для здоровья, тела, остеопатии, массажа, косметологии: не обещай лечение, гарантированный результат, избавление, чудо. Не используй "лечить", "вылечить", "избавлю", "убирает жир".
+- Для ремонтов не рекламируй "ремонт" вообще. Выбирай конкретную услугу: ванная, санузел, кухня, плитка, электрика, сантехника.
+- Для перевозок/переездов отдельный сильный угол: "дешево на входе, дорого в день переезда". Показывай риск дешевой компании через скрытые доплаты: негабарит, этаж, коробки, разборка мебели, вторая машина, ручной пронос, упаковка. Вывод: нормальный переезд начинается с понятного расчета заранее.
+- Для иврита не переводи русский шаблон дословно. Пиши как нативная реклама.
+- Стиль: живой, прямой, без маркетинговой пластмассы. Можно эмоционально, но без истерики там, где ниша требует доверия.
+- Дай несколько готовых вариантов. Каждый вариант должен иметь свой угол.
+- После текстов дай короткий блок "Что проверено": язык ниши, стоп-краны, корявые фразы.
+`;
+
+const COPY_REFERENCES = `
+Референс для перевозок, угол "дешево на входе, дорого в день переезда":
+
+Самая дешёвая компания для переезда часто кажется хорошей идеей.
+
+До момента, когда машина уже стоит у подъезда.
+
+И тут начинается:
+
+"Это негабарит".
+"За этаж отдельно".
+"Коробок больше, чем вы сказали".
+"Мебель надо разбирать, это доплата".
+"В машину не влезает, нужна вторая".
+
+И вы уже не выбираете спокойно.
+Ваши вещи стоят в коридоре, день сорван, а цена растёт прямо на месте.
+
+Нормальный переезд начинается не с самой низкой цифры.
+
+Он начинается с понятного расчёта: сколько вещей, какой этаж, есть ли лифт, нужна ли упаковка, разборка мебели и какая машина подойдёт.
+
+Мы заранее уточняем детали, считаем объём работ и говорим, что входит в стоимость.
+
+Чтобы переезд не превратился в дешёвое объявление, которое в итоге вышло дороже всех.
+
+Напишите в WhatsApp. Рассчитаем переезд заранее и договоримся на удобное время.
+`;
+
 function defaultState() {
   return {
     clients: [],
@@ -44,6 +89,74 @@ function readState() {
 function writeState(state) {
   ensureDataDir();
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+}
+
+function buildGenerationPrompt(body) {
+  const client = body.client || {};
+  return `
+Сгенерируй рекламные тексты.
+
+Количество вариантов: ${body.variantCount || 5}
+Язык: ${client.language || "ru"}
+Ниша: ${client.niche || ""}
+Клиент/специалист: ${client.name || ""}
+Таргетолог: ${client.mediaBuyer || ""}
+География: ${client.location || ""}
+Услуга: ${client.service || ""}
+Главная проблема: ${client.problem || ""}
+CTA: ${client.cta || "WhatsApp"}
+Опыт/лет: ${client.proofYears || ""}
+Соцдоказательство/людей: ${client.proofPeople || ""}
+Проблема для соцдоказательства: ${client.proofProblem || ""}
+Факты и ограничения:
+${client.facts || ""}
+
+Бриф:
+${client.brief || ""}
+
+Заметки для интернет-проверки:
+${client.researchNotes || ""}
+
+Верни только готовые варианты рекламы и короткий блок проверки. Не объясняй теорию.
+`;
+}
+
+async function generateWithOpenAI(body) {
+  if (!process.env.OPENAI_API_KEY) {
+    const error = new Error("OPENAI_API_KEY не подключен");
+    error.status = 501;
+    throw error;
+  }
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || "gpt-5",
+      tools: [{ type: "web_search" }],
+      input: [
+        { role: "system", content: COPY_RULES },
+        { role: "system", content: COPY_REFERENCES },
+        { role: "user", content: buildGenerationPrompt(body) }
+      ]
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error?.message || "OpenAI generation failed");
+  }
+
+  const outputText = data.output_text || (data.output || [])
+    .flatMap((item) => item.content || [])
+    .map((part) => part.text || "")
+    .filter(Boolean)
+    .join("\n");
+
+  return outputText.trim();
 }
 
 function sendJson(res, status, payload) {
@@ -159,6 +272,13 @@ async function handleApi(req, res) {
     const state = await readBody(req);
     writeState(state);
     sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (url.pathname === "/api/generate" && req.method === "POST") {
+    const body = await readBody(req);
+    const text = await generateWithOpenAI(body);
+    sendJson(res, 200, { text });
     return;
   }
 
