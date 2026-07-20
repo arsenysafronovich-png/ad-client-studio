@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ad Client Studio</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="login-screen" id="loginScreen">
+      <form class="login-card" id="loginForm">
+        <div class="brand login-brand">
+          <div class="brand-mark">A</div>
+          <div>
+            <h1>Ad Client Studio</h1>
+            <p>Вход для таргетолога</p>
+          </div>
+        </div>
+
+        <label>
+          Имя
+          <select id="loginUser">
+            <option>Арик</option>
+            <option>Таня</option>
+            <option>Эдик</option>
+            <option>Иван</option>
+            <option>Алина</option>
+          </select>
+        </label>
+
+        <label>
+          Пароль
+          <input id="loginPassword" type="password" autocomplete="current-password" />
+        </label>
+
+        <button class="primary wide" type="submit">Войти</button>
+        <p class="login-error" id="loginError"></p>
+      </form>
+    </div>
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">A</div>
+        <div>
+          <h1>Ad Client Studio</h1>
+          <p>Клиенты, файлы, тексты</p>
+        </div>
+      </div>
+
+      <button class="primary wide" id="newClientButton">Новый клиент</button>
+
+      <div class="nav-switch">
+        <button class="ghost wide active" id="dashboardPageButton">Дашборд</button>
+        <button class="ghost wide" id="clientPageButton">Клиент</button>
+      </div>
+
+      <label class="sidebar-field">
+        Вход
+        <select id="mediaBuyerSelect">
+          <option>Арик</option>
+          <option>Таня</option>
+          <option>Эдик</option>
+          <option>Иван</option>
+          <option>Алина</option>
+        </select>
+      </label>
+
+      <button class="ghost wide sidebar-field" id="logoutButton">Выйти</button>
+
+      <div class="search-wrap">
+        <input id="clientSearch" type="search" placeholder="Поиск клиента" />
+      </div>
+
+      <div class="client-list" id="clientList"></div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Карточка клиента</p>
+          <h2 id="clientTitle">Новый клиент</h2>
+        </div>
+        <div class="top-actions">
+          <button class="ghost" id="exportButton">Экспорт JSON</button>
+          <button class="primary" id="saveButton">Сохранить</button>
+        </div>
+      </header>
+
+      <section class="page active-page" id="dashboardPage">
+        <section class="panel client-table-panel">
+        <div class="panel-head">
+          <h3 id="buyerTableTitle">Дашборд заявок</h3>
+          <span class="muted" id="buyerTableCount">0 клиентов</span>
+        </div>
+        <div class="table-wrap">
+          <table class="client-table">
+            <thead>
+              <tr>
+                <th>Клиент</th>
+                <th>Статус</th>
+                <th>Ниша</th>
+                <th>Лиды 7д</th>
+                <th>Цена лида</th>
+                <th>Продажи</th>
+                <th>Сигнал</th>
+              </tr>
+            </thead>
+            <tbody id="clientTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+      </section>
+
+      <section class="page" id="clientPage">
+      <section class="grid two">
+        <form class="panel" id="clientForm">
+          <div class="panel-head">
+            <h3>Бриф</h3>
+            <span class="status-pill" id="clientStatusPill">Бриф</span>
+          </div>
+
+          <label>
+            Клиент
+            <input id="clientName" />
+          </label>
+
+          <label>
+            Таргетолог
+            <select id="clientMediaBuyer">
+              <option>Таня</option>
+              <option>Эдик</option>
+              <option>Иван</option>
+              <option>Алина</option>
+            </select>
+          </label>
+
+          <div class="row">
+            <label>
+              Ниша
+              <select id="clientNiche">
+                <option value="beauty_body">Косметолог / тело / массаж</option>
+                <option value="bodywork_pain">Остеопат / боли / тело</option>
+                <option value="repair">Ремонт</option>
+                <option value="moving">Перевозки / бытовые услуги</option>
+                <option value="custom">Другая ниша</option>
+              </select>
+            </label>
+            <label>
+              Статус
+              <select id="clientStatus">
+                <option>Бриф</option>
+                <option>Тексты</option>
+                <option>Крео</option>
+                <option>Запуск</option>
+                <option>Работает</option>
+                <option>Пауза</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="row">
+            <label>
+              Язык
+              <select id="clientLanguage">
+                <option value="ru">Русский</option>
+                <option value="he">Иврит</option>
+                <option value="ru_he">Русский и иврит</option>
+              </select>
+            </label>
+            <label>
+              География
+              <input id="clientLocation" />
+            </label>
+          </div>
+
+          <label>
+            Услуга / что рекламируем сейчас
+            <input id="clientService" />
+          </label>
+
+          <button class="ghost wide" id="newServiceButton" type="button">Новая услуга</button>
+
+          <div class="row">
+            <label>
+              Главная проблема клиента
+              <input id="clientProblem" />
+            </label>
+            <label>
+              Следующий шаг
+              <input id="clientCta" />
+            </label>
+          </div>
+
+          <div class="row">
+            <label>
+              Опыт / лет
+              <input id="clientProofYears" />
+            </label>
+            <label>
+              Соцдоказательство / людей
+              <input id="clientProofPeople" />
+            </label>
+          </div>
+
+          <label>
+            Проблема для соцдоказательства
+            <input id="clientProofProblem" />
+          </label>
+
+          <div class="row">
+            <label>
+              Лиды за 7 дней
+              <input id="clientLeads7d" type="number" min="0" />
+            </label>
+            <label>
+              Цена лида
+              <input id="clientCpl" />
+            </label>
+          </div>
+
+          <div class="row">
+            <label>
+              Продажи
+              <input id="clientSales" type="number" min="0" />
+            </label>
+            <label>
+              Целевая цена лида
+              <input id="clientTargetCpl" />
+            </label>
+          </div>
+
+          <div class="row">
+            <label>
+              Бюджет
+              <input id="clientBudget" />
+            </label>
+            <label>
+              География рекламы
+              <input id="clientAdGeo" />
+            </label>
+          </div>
+
+          <label>
+            Факты, цены, опыт, ограничения
+            <textarea id="clientFacts" rows="5"></textarea>
+          </label>
+
+          <label>
+            Бриф клиента
+            <textarea id="clientBrief" rows="7"></textarea>
+          </label>
+
+          <button class="secondary wide" id="saveGenerateButton" type="button">Сохранить бриф и сгенерировать</button>
+        </form>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h3>Файлы клиента</h3>
+            <span class="muted" id="fileCount">0 файлов</span>
+          </div>
+          <label class="dropzone" for="fileInput">
+            <input id="fileInput" type="file" multiple accept=".txt,.md,.csv,.json,.html,.doc,.docx,.pdf,image/*" />
+            <strong>Загрузить файлы</strong>
+            <span>Брифы, отзывы, тексты, скрины, CSV. Текстовые файлы читаются сразу.</span>
+          </label>
+          <div class="file-list" id="fileList"></div>
+        </section>
+      </section>
+
+      <section class="grid two generator-grid">
+        <section class="panel">
+          <div class="panel-head">
+            <h3>Генерация</h3>
+            <span class="muted" id="templateBadge">Автовыбор шаблона</span>
+          </div>
+
+          <div class="row">
+            <label>
+              Формат
+              <select id="adFormat">
+                <option>Meta post</option>
+                <option>Статик</option>
+                <option>Reels script</option>
+                <option>Google RSA</option>
+              </select>
+            </label>
+            <label>
+              Угол
+              <select id="angleMode">
+                <option value="auto">Выбрать автоматически</option>
+                <option value="pain">Боль / проблема</option>
+                <option value="risk">Снятие риска</option>
+                <option value="result">Результат</option>
+                <option value="process">Процесс как доказательство</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            Сколько текстов
+            <select id="variantCount">
+              <option value="3">3 текста</option>
+              <option value="5" selected>5 текстов</option>
+              <option value="7">7 текстов</option>
+            </select>
+          </label>
+
+          <label>
+            Что обязательно проверить в интернете
+            <textarea id="researchNotes" rows="5"></textarea>
+          </label>
+
+          <div class="button-row">
+            <button class="primary" id="generateButton">Сгенерировать текст</button>
+            <button class="secondary" id="manualCheckButton">Прогнать стоп-краны</button>
+            <button class="ghost" id="saveReserveButton" type="button">Сохранить в запас</button>
+          </div>
+
+          <div class="rules-box">
+            <strong>Всегда включено</strong>
+            <p>Интернет-проверка языка ниши, фильтр корявых фраз, один угол, понятная услуга, мягкие обещания для здоровья/косметологии.</p>
+          </div>
+        </section>
+
+        <section class="panel output-panel">
+          <div class="panel-head">
+            <h3>Финальный текст</h3>
+            <div class="top-actions">
+              <button class="ghost small" id="copyButton">Копировать</button>
+              <button class="primary small" id="approveTextButton">Одобрить</button>
+            </div>
+          </div>
+          <textarea id="finalOutput" class="output" placeholder="Здесь появится готовый текст." rows="18"></textarea>
+        </section>
+      </section>
+
+      <section class="panel production-panel">
+        <div class="panel-head">
+          <h3>Продакшен после одобрения</h3>
+          <span class="muted" id="productionStatus">Текст не одобрен</span>
+        </div>
+        <div class="button-row">
+          <button class="secondary" id="createStaticButton">Создать статику</button>
+          <button class="secondary" id="createVideoButton">Создать монтаж</button>
+        </div>
+        <div class="rules-box">
+          <strong>Логика</strong>
+          <p>Таргетолог генерирует текст, проверяет, нажимает “Одобрить”. После этого пакет можно отправлять в статику, монтаж и запас креативов.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h3>Этапы процесса</h3>
+          <span class="muted">Система пишет, что сделала</span>
+        </div>
+        <div class="process" id="processList"></div>
+      </section>
+
+      <section class="panel reserve-panel">
+        <div class="panel-head">
+          <h3>Запас креативов</h3>
+          <span class="muted" id="reserveCount">0 пакетов</span>
+        </div>
+        <div class="reserve-list" id="reserveList"></div>
+      </section>
+
+      <section class="panel log-panel">
+        <div class="panel-head">
+          <h3>Дневник изменений</h3>
+          <span class="muted" id="logCount">0 записей</span>
+        </div>
+        <div class="row">
+          <label>
+            Тип изменения
+            <select id="logType">
+              <option>Бюджет</option>
+              <option>География</option>
+              <option>Креатив</option>
+              <option>Статус</option>
+              <option>Запуск</option>
+              <option>Комментарий</option>
+            </select>
+          </label>
+          <label>
+            Заметка
+            <input id="logNote" />
+          </label>
+        </div>
+        <button class="secondary" id="addLogButton">Добавить запись</button>
+        <div class="log-list" id="logList"></div>
+      </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
