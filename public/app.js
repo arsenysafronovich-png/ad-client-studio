@@ -204,7 +204,7 @@ function save() {
   if (active) {
     readForm(active);
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  persistOnly();
   renderAll();
 }
 
@@ -485,7 +485,7 @@ function autoAngle(client) {
     if (service.includes("плит")) return "ровная плитка без кривых швов и переделок";
     return "понятная смета до начала работ";
   }
-  if (client.niche === "moving") return "хаос, тяжесть и неожиданные доплаты в день услуги";
+  if (client.niche === "moving") return "самая дешевая компания может стать дорогой в день переезда";
   if (service.includes("iconic") || service.includes("жир") || service.includes("объем")) return "локальная зона, которая плохо уходит при питании и спорте";
   return "конкретная проблема, которую человек уже хочет решить";
 }
@@ -528,6 +528,9 @@ function anglePack(client) {
   if (client.niche === "moving") {
     return [
       ...customProblem,
+      "самая дешевая компания может стать дорогой в день переезда",
+      "дешевая цена на входе превращается в доплаты у подъезда",
+      "вещи уже в коридоре, а цена начинает расти",
       "день переезда не превращается в хаос",
       "стоимость понятна до выезда",
       "мебель разбирают, собирают и перевозят аккуратно",
@@ -737,6 +740,34 @@ function repairTemplate(service, angle, location, facts, cta, proof) {
 
 function movingTemplate(service, angle, location, facts, cta, proof) {
   const where = location ? `\n\nРаботаем: ${location}.` : "";
+  if (/дешев|дорог|доплат|цена.*раст|у подъезда/i.test(angle)) {
+    return `Самая дешевая компания для ${service || "переезда"} часто кажется хорошей идеей.
+
+До момента, когда машина уже стоит у подъезда.
+
+И тут начинается:
+
+✅ “Это негабарит”
+✅ “За этаж отдельно”
+✅ “Коробок больше, чем вы сказали”
+✅ “Мебель надо разбирать, это доплата”
+✅ “В машину не влезает, нужна вторая”
+
+И вы уже не выбираете спокойно.
+
+Ваши вещи стоят в коридоре, день сорван, а цена растет прямо на месте.
+
+Нормальный переезд начинается не с самой низкой цифры.
+
+Он начинается с понятного расчета: сколько вещей, какой этаж, есть ли лифт, нужна ли упаковка, разборка мебели и какая машина подойдет.
+
+Мы заранее уточняем детали, считаем объем работ и говорим, что входит в стоимость.
+
+Чтобы переезд не превратился в дешевое объявление, которое в итоге вышло дороже всех.${proof}${where}${facts}
+
+Напишите в ${cta}. Рассчитаем переезд заранее и договоримся на удобное время.`;
+  }
+
   return `Когда вы слышите “${service || "переезд"}”, что первое приходит в голову?
 
 Коробки. Мебель. Лифт. Лестница. Время. И мысль, что день может легко превратиться в хаос.
@@ -824,12 +855,79 @@ function stopCranePass(text, client) {
   };
 }
 
-function generate() {
+async function generate() {
   const client = getActiveClient();
   if (!client) return;
   readForm(client);
 
   const research = researchLanguage(client);
+  client.process = [
+    {
+      title: "AI + интернет",
+      body: "Запускаю серверную генерацию. Если OPENAI_API_KEY подключен, модель сначала проверит язык ниши через web search.",
+      warning: false
+    }
+  ];
+  fillForm(client);
+  persistOnly();
+  renderAll();
+
+  try {
+    const data = await api("/api/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        client,
+        variantCount: Number(elements.variantCount.value || 5),
+        format: elements.adFormat.value,
+        angleMode: elements.angleMode.value
+      })
+    });
+    client.finalOutput = hardStopCraneRewrite(data.text || "", client).text;
+    client.process = [
+      {
+        title: "Интернет-проверка",
+        body: "Серверная AI-генерация прошла с web search. Модель должна была взять язык ниши из актуальных источников."
+      },
+      {
+        title: "Фильтр корявых фраз",
+        body: "После генерации текст дополнительно прошел локальный фильтр кривых фраз и стоп-слов."
+      },
+      {
+        title: "Стоп-краны",
+        body: "Проверены жесткие обещания, лечение, гарантии, смешение нескольких проблем и рискованные формулировки."
+      },
+      {
+        title: "Финал",
+        body: "Это уже не локальный шаблон, а серверная генерация. Все равно таргетолог должен прочитать и одобрить."
+      }
+    ];
+    fillForm(client);
+    persistOnly();
+    renderAll();
+    return;
+  } catch (error) {
+    client.finalOutput = `AI-генерация пока не подключена.\n\nПричина: ${error.message}\n\nЧто нужно сделать:\n1. В Render открыть сервис ad-client-studio.\n2. Зайти в Environment.\n3. Добавить переменную OPENAI_API_KEY.\n4. Перезапустить сервис.\n\nДо этого сайт не должен притворяться, что реально проверил интернет и написал сильный текст.`;
+    client.process = [
+      {
+        title: "Стоп",
+        body: "Настоящая генерация не запущена, потому что сервер не получил доступ к OpenAI API.",
+        warning: true
+      },
+      {
+        title: "Почему старые тексты были плохими",
+        body: "Раньше работал локальный шаблон без модели и без настоящего интернета. Это годится только как макет интерфейса."
+      },
+      {
+        title: "Что дальше",
+        body: "Подключаем OPENAI_API_KEY, и кнопка начнет генерировать через AI + web search."
+      }
+    ];
+    fillForm(client);
+    persistOnly();
+    renderAll();
+    return;
+  }
+
   const count = Number(elements.variantCount.value || 5);
   const angles = uniqueAngles(anglePack(client)).slice(0, count);
   const languageModes = client.language === "ru_he" ? ["ru", "he"] : [client.language || "ru"];
@@ -913,18 +1011,57 @@ function manualCheck() {
   const client = getActiveClient();
   if (!client) return;
   readForm(client);
-  const phrasePass = crookedPhrasePass(client.finalOutput || generateDraft(client), client);
-  const stopPass = stopCranePass(phrasePass.text, client);
-  client.finalOutput = phrasePass.text;
+  const source = client.finalOutput || generateDraft(client);
+  const phrasePass = crookedPhrasePass(source, client);
+  const rewritePass = hardStopCraneRewrite(phrasePass.text, client);
+  const stopPass = stopCranePass(rewritePass.text, client);
+  client.finalOutput = rewritePass.text;
   client.process = [
     { title: "Ручной прогон", body: "Запущена отдельная проверка без смены карточки клиента." },
-    { title: "Фильтр корявых фраз", body: phrasePass.summary },
+    { title: "Фильтр корявых фраз", body: `${phrasePass.summary} ${rewritePass.summary}` },
     { title: "Стоп-краны", body: stopPass.summary },
-    { title: "Итог", body: "Если фраза звучала деревянно, система заменила ее сразу." }
+    { title: "Итог", body: rewritePass.changed ? "Текст реально переписан и сохранен." : "Критичных стоп-фраз не найдено. Текст сохранен." }
   ];
   fillForm(client);
   persistOnly();
   renderAll();
+}
+
+function hardStopCraneRewrite(text, client) {
+  let cleaned = String(text || "");
+  const before = cleaned;
+  const replacements = [
+    [/леч(у|им|ит|ить|ение)\b/gi, "работаю с состоянием"],
+    [/вылеч(у|им|ит|ить)\b/gi, "помочь разобраться с причиной"],
+    [/избав(лю|им|ит|иться|ление)\b/gi, "помочь снизить влияние проблемы"],
+    [/гарантир(ую|уем|ует|ованно|ованный)/gi, "по состоянию после оценки"],
+    [/убира(ю|ем|ет)\s+жир/gi, "работаю с локальными отложениями"],
+    [/жир\s+уйдет/gi, "объем в зоне может уменьшиться"],
+    [/чудо\s+за\s+один\s+сеанс/gi, "быстрые обещания без оценки"],
+    [/с помощью остеопатии/gi, "на остеопатическом приеме"],
+    [/Я работаю с Остеопатия/g, "Я остеопат"],
+    [/работаю с Остеопатия/g, "я остеопат"]
+  ];
+
+  replacements.forEach(([pattern, replacement]) => {
+    cleaned = cleaned.replace(pattern, replacement);
+  });
+
+  if (client.niche === "bodywork_pain") {
+    cleaned = cleaned
+      .replace(/процедур[а-я]*/gi, "прием")
+      .replace(/зона вас беспокоит/gi, "где и как болит")
+      .replace(/состояние кожи/gi, "движение и нагрузку")
+      .replace(/подбираю режим/gi, "смотрю, откуда может идти нагрузка");
+  }
+
+  return {
+    text: cleaned,
+    changed: cleaned !== before,
+    summary: cleaned !== before
+      ? "Жесткие обещания и медицински рискованные слова заменены."
+      : "Жестких обещаний и запрещенных слов не найдено."
+  };
 }
 
 async function handleFiles(files) {
