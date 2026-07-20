@@ -80,12 +80,6 @@ const elements = {
   clientProofYears: $("clientProofYears"),
   clientProofPeople: $("clientProofPeople"),
   clientProofProblem: $("clientProofProblem"),
-  clientLeads7d: $("clientLeads7d"),
-  clientCpl: $("clientCpl"),
-  clientSales: $("clientSales"),
-  clientTargetCpl: $("clientTargetCpl"),
-  clientBudget: $("clientBudget"),
-  clientAdGeo: $("clientAdGeo"),
   clientFacts: $("clientFacts"),
   clientBrief: $("clientBrief"),
   fileInput: $("fileInput"),
@@ -230,12 +224,6 @@ function readForm(client) {
   client.proofYears = elements.clientProofYears.value.trim();
   client.proofPeople = elements.clientProofPeople.value.trim();
   client.proofProblem = elements.clientProofProblem.value.trim();
-  client.leads7d = elements.clientLeads7d.value.trim();
-  client.cpl = elements.clientCpl.value.trim();
-  client.sales = elements.clientSales.value.trim();
-  client.targetCpl = elements.clientTargetCpl.value.trim();
-  client.budget = elements.clientBudget.value.trim();
-  client.adGeo = elements.clientAdGeo.value.trim();
   client.facts = elements.clientFacts.value.trim();
   client.brief = elements.clientBrief.value.trim();
   client.researchNotes = elements.researchNotes.value.trim();
@@ -256,12 +244,6 @@ function fillForm(client) {
   elements.clientProofYears.value = client.proofYears || "";
   elements.clientProofPeople.value = client.proofPeople || "";
   elements.clientProofProblem.value = client.proofProblem || "";
-  elements.clientLeads7d.value = client.leads7d || "";
-  elements.clientCpl.value = client.cpl || "";
-  elements.clientSales.value = client.sales || "";
-  elements.clientTargetCpl.value = client.targetCpl || "";
-  elements.clientBudget.value = client.budget || "";
-  elements.clientAdGeo.value = client.adGeo || "";
   elements.clientFacts.value = client.facts || "";
   elements.clientBrief.value = client.brief || "";
   elements.researchNotes.value = client.researchNotes || "";
@@ -323,7 +305,7 @@ function renderClientList() {
 function renderClientTable() {
   const clients = visibleClients();
   const selectedBuyer = elements.mediaBuyerSelect.value;
-  elements.buyerTableTitle.textContent = selectedBuyer === "Арик" ? "Дашборд заявок: все клиенты" : `Дашборд заявок: ${selectedBuyer}`;
+  elements.buyerTableTitle.textContent = selectedBuyer === "Арик" ? "Клиенты: все таргетологи" : `Клиенты: ${selectedBuyer}`;
   elements.buyerTableCount.textContent = `${clients.length} клиентов`;
   elements.clientTableBody.innerHTML = "";
 
@@ -336,19 +318,14 @@ function renderClientTable() {
 
   clients.forEach((client) => {
     const row = document.createElement("tr");
-    const signal = clientSignal(client);
-    row.className = [
-      client.id === state.activeId ? "active-row" : "",
-      isProblemClient(client) ? "problem-row" : ""
-    ].filter(Boolean).join(" ");
+    row.className = client.id === state.activeId ? "active-row" : "";
     row.innerHTML = `
       <td><strong>${escapeHtml(client.name)}</strong><br><span class="muted">${escapeHtml(client.mediaBuyer || "Таня")}</span></td>
       <td>${escapeHtml(client.status || "")}</td>
       <td>${escapeHtml(getTemplateName(client.niche))}</td>
-      <td>${escapeHtml(client.leads7d || "")}</td>
-      <td>${escapeHtml(client.cpl || "")}</td>
-      <td>${escapeHtml(client.sales || "")}</td>
-      <td class="signal">${escapeHtml(signal)}</td>
+      <td>${escapeHtml(client.service || "Не заполнено")}</td>
+      <td>${escapeHtml(languageLabel(client.language))}</td>
+      <td>${escapeHtml(formatDate(client.updatedAt))}</td>
     `;
     row.addEventListener("click", () => {
       const active = getActiveClient();
@@ -363,32 +340,24 @@ function renderClientTable() {
   });
 }
 
-function clientSignal(client) {
-  const leads = Number(client.leads7d || 0);
-  const sales = Number(client.sales || 0);
-  const cpl = parseMoney(client.cpl);
-  const target = parseMoney(client.targetCpl);
-
-  if (!client.leads7d && !client.cpl && !client.sales) return "Нет данных";
-  if (leads === 0) return "Нет заявок";
-  if (isProblemClient(client)) return hasReserve(client) ? "Дорого: взять запас" : "Дорого: нужен запас";
-  if (target && cpl && cpl > target * 1.35) return "Цена выше цели";
-  if (leads >= 5 && sales === 0) return "Есть лиды, нет продаж";
-  if (sales > 0) return "Есть продажи";
-  return "Наблюдать";
-}
-
-function isProblemClient(client) {
-  return parseMoney(client.cpl) > 20;
-}
-
 function hasReserve(client) {
   return Boolean((client.creativeReserve || []).length);
 }
 
-function parseMoney(value) {
-  const number = String(value || "").replace(",", ".").match(/\d+(\.\d+)?/);
-  return number ? Number(number[0]) : 0;
+function languageLabel(value) {
+  const labels = {
+    ru: "Русский",
+    he: "Иврит",
+    ru_he: "Русский и иврит"
+  };
+  return labels[value] || "Русский";
+}
+
+function formatDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
 }
 
 function renderFiles(client) {
@@ -911,6 +880,28 @@ async function generate() {
     renderAll();
     return;
   } catch (error) {
+    if (/Недостаточно брифа/i.test(error.message)) {
+      client.finalOutput = error.message;
+      client.process = [
+        {
+          title: "Стоп-кран",
+          body: "Генерация остановлена до OpenAI. Пустая карточка не должна превращаться в выдуманный рекламный текст.",
+          warning: true
+        },
+        {
+          title: "Что заполнить",
+          body: "Минимум: конкретная услуга, одна главная проблема, география или факты. После этого можно запускать интернет-проверку и генерацию."
+        },
+        {
+          title: "Наши правила",
+          body: "Без брифа нельзя выбрать нормальный угол, проверить язык ниши и пройти фильтр корявых фраз."
+        }
+      ];
+      fillForm(client);
+      persistOnly();
+      renderAll();
+      return;
+    }
     if (/Нужно войти/i.test(error.message)) {
       localStorage.removeItem(SESSION_KEY);
       elements.loginScreen.classList.remove("hidden");
@@ -1019,13 +1010,6 @@ ${angle}
 
 function uniqueAngles(angles) {
   return [...new Set(angles.map((angle) => String(angle || "").trim()).filter(Boolean))];
-}
-
-function saveAndGenerate() {
-  const client = getActiveClient();
-  if (!client) return;
-  readForm(client);
-  generate();
 }
 
 function manualCheck() {
@@ -1298,7 +1282,6 @@ $("clientPageButton").addEventListener("click", () => showPage("client"));
 $("saveButton").addEventListener("click", save);
 $("exportButton").addEventListener("click", exportData);
 $("generateButton").addEventListener("click", generate);
-$("saveGenerateButton").addEventListener("click", saveAndGenerate);
 $("manualCheckButton").addEventListener("click", manualCheck);
 $("saveReserveButton").addEventListener("click", saveToReserve);
 $("newServiceButton").addEventListener("click", startNewService);
