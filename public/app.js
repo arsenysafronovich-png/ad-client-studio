@@ -121,11 +121,12 @@ async function load() {
   }
 
   if (!state.clients.length) {
-    const client = defaultClient();
-    state.clients.push(client);
-    state.activeId = client.id;
+    state.activeId = null;
+    return;
   }
-  state.activeId ||= state.clients[0].id;
+  if (!state.clients.some((client) => client.id === state.activeId)) {
+    state.activeId = state.clients[0].id;
+  }
 }
 
 async function loadSession() {
@@ -222,6 +223,10 @@ function readForm(client) {
 }
 
 function fillForm(client) {
+  if (!client) {
+    clearForm();
+    return;
+  }
   elements.clientName.value = client.name || "";
   elements.clientMediaBuyer.value = client.mediaBuyer || "Таня";
   elements.clientNiche.value = client.niche || "beauty_body";
@@ -235,11 +240,38 @@ function fillForm(client) {
   elements.productionStatus.textContent = client.productionStatus || "Текст не одобрен";
 }
 
+function clearForm() {
+  elements.clientName.value = "";
+  elements.clientMediaBuyer.value = elements.mediaBuyerSelect.value === "Арик" ? "Таня" : elements.mediaBuyerSelect.value;
+  elements.clientNiche.value = "beauty_body";
+  elements.clientStatus.value = "Бриф";
+  elements.clientLanguage.value = "ru";
+  elements.clientLocation.value = "";
+  elements.clientService.value = "";
+  elements.clientBrief.value = "";
+  elements.researchNotes.value = "";
+  elements.finalOutput.value = "";
+  elements.productionStatus.textContent = "Текст не одобрен";
+}
+
 function renderAll() {
   renderClientList();
   renderClientTable();
   const active = getActiveClient();
-  if (!active) return;
+  if (!active) {
+    clearForm();
+    elements.clientStatusPill.textContent = "Нет клиента";
+    elements.fileCount.textContent = "0 файлов";
+    elements.reserveCount.textContent = "0 пакетов";
+    elements.logCount.textContent = "0 записей";
+    elements.templateBadge.textContent = "Нет клиента";
+    renderFiles({ files: [] });
+    renderReserve({ creativeReserve: [] });
+    renderLogs({ logs: [] });
+    renderProcess([]);
+    updateTopbar();
+    return;
+  }
   elements.clientStatusPill.textContent = active.status;
   elements.fileCount.textContent = `${active.files.length} файлов`;
   elements.reserveCount.textContent = `${(active.creativeReserve || []).length} пакетов`;
@@ -1246,13 +1278,7 @@ function deleteActiveClient() {
   if (!shouldDelete) return;
 
   state.clients = state.clients.filter((item) => item.id !== client.id);
-  if (!state.clients.length) {
-    const fallback = defaultClient();
-    state.clients.push(fallback);
-    state.activeId = fallback.id;
-  } else {
-    state.activeId = state.clients[0].id;
-  }
+  state.activeId = state.clients[0]?.id || null;
 
   fillForm(getActiveClient());
   persistOnly();
