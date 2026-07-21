@@ -46,6 +46,7 @@ const state = {
 };
 
 let saveTimer = null;
+let generationBusy = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -88,6 +89,7 @@ const elements = {
   productionStatus: $("productionStatus"),
   finalOutput: $("finalOutput"),
   editInstruction: $("editInstruction"),
+  generationStatus: $("generationStatus"),
   processList: $("processList"),
   templateBadge: $("templateBadge"),
   adFormat: $("adFormat"),
@@ -838,20 +840,41 @@ function stopCranePass(text, client) {
   };
 }
 
+function setGenerationBusy(isBusy, label = "") {
+  generationBusy = isBusy;
+  const generateButton = $("generateButton");
+  const rewriteButton = $("rewriteTextButton");
+  const manualCheckButton = $("manualCheckButton");
+  if (generateButton) {
+    generateButton.disabled = isBusy;
+    generateButton.textContent = isBusy ? "Генерирую..." : "Сгенерировать текст";
+    generateButton.classList.toggle("is-loading", isBusy);
+  }
+  if (rewriteButton) rewriteButton.disabled = isBusy;
+  if (manualCheckButton) manualCheckButton.disabled = isBusy;
+  if (elements.generationStatus) {
+    elements.generationStatus.textContent = label;
+    elements.generationStatus.classList.toggle("active", Boolean(label));
+  }
+}
+
 async function generate() {
+  if (generationBusy) return;
   const client = getActiveClient();
   if (!client) return;
   readForm(client);
 
-  const research = researchLanguage(client);
+  setGenerationBusy(true, "Генерация запущена. Проверяю интернет, язык ниши и наши стоп-краны...");
   client.process = [
     {
-      title: "AI + интернет",
-      body: "Запускаю серверную генерацию. Если OPENAI_API_KEY подключен, модель сначала проверит язык ниши через web search.",
+      title: "Генерация идет",
+      body: "Кнопка сработала. Сейчас сервер проверяет язык ниши через интернет, выбирает угол и прогоняет текст через фильтры.",
       warning: false
     }
   ];
+  elements.finalOutput.value = "Генерирую текст...\n\nЭто может занять до минуты: система проверяет интернет, пишет варианты и прогоняет стоп-краны.";
   fillForm(client);
+  elements.finalOutput.value = "Генерирую текст...\n\nЭто может занять до минуты: система проверяет интернет, пишет варианты и прогоняет стоп-краны.";
   persistOnly();
   renderAll();
 
@@ -865,6 +888,7 @@ async function generate() {
         angleMode: elements.angleMode.value
       })
     });
+    setGenerationBusy(false, "Готово. Текст сгенерирован и прошел фильтры.");
     client.finalOutput = hardStopCraneRewrite(data.text || "", client).text;
     client.process = [
       {
@@ -887,8 +911,10 @@ async function generate() {
     fillForm(client);
     persistOnly();
     renderAll();
+    setTimeout(() => setGenerationBusy(false, ""), 2500);
     return;
   } catch (error) {
+    setGenerationBusy(false, "");
     if (/Недостаточно брифа/i.test(error.message)) {
       client.finalOutput = error.message;
       client.process = [
@@ -949,6 +975,7 @@ async function generate() {
     return;
   }
 
+  const research = researchLanguage(client);
   const count = Number(elements.variantCount.value || 5);
   const angles = uniqueAngles(anglePack(client)).slice(0, count);
   const languageModes = client.language === "ru_he" ? ["ru", "he"] : [client.language || "ru"];
@@ -999,6 +1026,7 @@ async function generate() {
 }
 
 async function rewriteTextWithInstruction() {
+  if (generationBusy) return;
   const client = getActiveClient();
   if (!client) return;
   readForm(client);
@@ -1023,6 +1051,7 @@ async function rewriteTextWithInstruction() {
     return;
   }
 
+  setGenerationBusy(true, "Переделываю текст по комментарию. Читаю текущий вариант и правлю по вашим словам...");
   client.process = [
     { title: "Редактирование", body: "Читаю текущий текст, комментарий таргетолога, бриф клиента и наши правила. Переписываю не с нуля, а по указанной правке." }
   ];
@@ -1040,6 +1069,7 @@ async function rewriteTextWithInstruction() {
         format: elements.adFormat.value
       })
     });
+    setGenerationBusy(false, "Готово. Текст переделан по комментарию.");
     client.finalOutput = hardStopCraneRewrite(data.text || "", client).text;
     client.process = [
       { title: "Комментарий учтен", body: `Правка: ${instruction}` },
@@ -1051,7 +1081,9 @@ async function rewriteTextWithInstruction() {
     fillForm(client);
     persistOnly();
     renderAll();
+    setTimeout(() => setGenerationBusy(false, ""), 2500);
   } catch (error) {
+    setGenerationBusy(false, "");
     client.process = [
       { title: "Не получилось переделать", body: error.message || "Сервер не вернул исправленную версию.", warning: true },
       { title: "Что сделать", body: "Проверьте, что текст уже есть, комментарий заполнен, и попробуйте еще раз." }
