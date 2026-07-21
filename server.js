@@ -329,6 +329,166 @@ function sendJson(res, status, payload) {
   res.end(body);
 }
 
+
+async function callOpenAI(input) {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || "gpt-5",
+      tools: [{ type: "web_search" }],
+      input
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    const error = new Error(data.error?.message || "OpenAI generation failed");
+    error.status = response.status;
+    throw error;
+  }
+
+  const outputText = data.output_text || (data.output || [])
+    .flatMap((item) => item.content || [])
+    .map((part) => part.text || "")
+    .filter(Boolean)
+    .join("\n");
+
+  return outputText.trim();
+}
+
+function assessCopyQuality(text, body) {
+  const client = body.client || {};
+  const haystack = String(text || "");
+  const lower = haystack.toLowerCase();
+  const issues = [];
+
+  const genericPhrases = [
+    "индивидуальный подход",
+    "комплексное решение",
+    "профессиональный сервис",
+    "качественные услуги",
+    "улучшить качество жизни",
+    "вернуть здоровье",
+    "доверьтесь профессионалам",
+    "получите консультацию"
+  ];
+  genericPhrases.forEach((phrase) => {
+    if (lower.includes(phrase)) issues.push(`пластмассовая фраза: ${phrase}`);
+  });
+
+  const crookedPhrases = [
+    "с помощью остеопатии",
+    "работаю с остеопатия",
+    "с остеопатия",
+    "зона вас беспокоит",
+    "подбираю режим процедуры"
+  ];
+  crookedPhrases.forEach((phrase) => {
+    if (lower.includes(phrase)) issues.push(`корявая фраза: ${phrase}`);
+  });
+
+  if (/леч(у|им|ит|ить|ение)|вылеч|избав(лю|им|ит|иться|ление)|гарантир|навсегда/i.test(haystack)) {
+    issues.push("есть медицинское или слишком жесткое обещание");
+  }
+
+  if (/остеопат|колен|поясниц|спин/i.test(`${client.niche} ${client.service} ${client.brief}`)) {
+    if (/состояние кожи|локальн(ая|ую|ой) зон|жир|силуэт|процедура проходит без уколов/i.test(haystack)) {
+      issues.push("остеопатический текст смешан с косметологическим шаблоном");
+    }
+    if (!/стоп|таз|поясниц|движен|нагруз|лестниц|ходьб|вставан/i.test(haystack)) {
+      issues.push("нет языка остеопатической ниши про движение, нагрузку, стопу, таз или лестницу");
+    }
+  }
+
+  if (/перевоз|переезд|груз/i.test(`${client.niche} ${client.service} ${client.brief}`)) {
+    if (!/короб|мебел|лифт|этаж|машин|доплат|вещ|подъезд|упаков/i.test(haystack)) {
+      issues.push("нет живого языка перевозок: вещи, мебель, этаж, лифт, коробки, доплаты");
+    }
+  }
+
+  if (/ремонт|ванн|сануз|кухн|плитк|сантех|электр/i.test(`${client.niche} ${client.service} ${client.brief}`)) {
+    if (/ремонт\b/i.test(haystack) && !/ванн|сануз|кухн|плитк|сантех|электр|гидроизоляц|шв|смет/i.test(haystack)) {
+      issues.push("ремонт написан слишком общо, без конкретной услуги и ремонтного риска");
+    }
+  }
+
+  const variantMatches = haystack.match(/Вариант\s+\d+/gi) || [];
+  const requestedCount = Number(body.variantCount || 5);
+  if (requestedCount > 1 && variantMatches.length < Math.min(2, requestedCount)) {
+    issues.push("модель не вернула несколько вариантов");
+  }
+
+  const firstTextLine = haystack
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line && !/^Вариант\s+\d+/i.test(line));
+  if (firstTextLine && /\?$/.test(firstTextLine)) {
+    issues.push("первый экран начинается ленивым вопросом");
+  }
+
+  if (haystack.length < 600) {
+    issues.push("текст слишком короткий для набора вариантов");
+  }
+
+  return [...new Set(issues)];
+}
+
+function buildRewritePrompt(body, badText, issues) {
+  return `
+Первый ответ не прошел контроль качества команды Арика.
+
+Проблемы:
+${issues.map((issue) => `- ${issue}`).join("\n")}
+
+Плохой текст:
+${badText}
+
+Перепиши с нуля.
+Обязательно:
+- держи стиль референса нужной ниши, а не общий маркетинговый стиль;
+- каждый вариант = отдельный угол;
+- первый экран должен сразу попадать в конкретную ситуацию клиента;
+- не добавляй чужую нишу, чужие проблемы и чужие обещания;
+- блок "Что проверено" оставь коротким и конкретным.
+
+Исходный запрос:
+${buildGenerationPrompt(body)}
+`;
+}
+
+async function generateWithOpenAI(body) {
+  validateGenerationInput(body);
+
+  if (!process.env.OPENAI_API_KEY) {
+    const error = new Error("OPENAI_API_KEY не подключен");
+    error.status = 501;
+    throw error;
+  }
+
+  const input = [
+    { role: "system", content: COPY_RULES },
+    { role: "system", content: COPY_REFERENCES },
+    { role: "user", content: buildGenerationPrompt(body) }
+  ];
+  let outputText = await callOpenAI(input);
+  const issues = assessCopyQuality(outputText, body);
+
+  if (issues.length) {
+    outputText = await callOpenAI([
+      { role: "system", content: COPY_RULES },
+      { role: "system", content: COPY_REFERENCES },
+      { role: "user", content: buildRewritePrompt(body, outputText, issues) }
+    ]);
+  }
+
+  return outputText;
+}
+
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
