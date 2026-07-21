@@ -7,6 +7,8 @@ const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const STATE_FILE = path.join(DATA_DIR, "state.json");
+const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS || 90000);
+const QUALITY_REWRITE_ATTEMPTS = Number(process.env.QUALITY_REWRITE_ATTEMPTS || 2);
 
 const USERS = {
   "Арик": process.env.PASSWORD_ARIK || "arik",
@@ -357,8 +359,11 @@ ${(client.files || []).map((file) => file.text ? `[${file.name}]\n${file.text.sl
 }
 
 async function callOpenAI(input) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
+    signal: controller.signal,
     headers: {
       "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
       "Content-Type": "application/json"
@@ -368,6 +373,15 @@ async function callOpenAI(input) {
       tools: [{ type: "web_search" }],
       input
     })
+  }).catch((error) => {
+    if (error.name === "AbortError") {
+      const timeoutError = new Error("OpenAI слишком долго отвечает. Нажмите “Сгенерировать текст” еще раз или попробуйте меньше вариантов.");
+      timeoutError.status = 504;
+      throw timeoutError;
+    }
+    throw error;
+  }).finally(() => {
+    clearTimeout(timeout);
   });
 
   const data = await response.json();
@@ -595,7 +609,7 @@ async function generateWithOpenAI(body) {
   ];
   let outputText = await callOpenAI(input);
   let finalIssues = [];
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < QUALITY_REWRITE_ATTEMPTS; attempt += 1) {
     const issues = assessCopyQuality(outputText, body);
     finalIssues = issues;
     if (!issues.length) {
@@ -647,7 +661,7 @@ async function rewriteWithOpenAI(body) {
   ]);
 
   let finalIssues = [];
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < QUALITY_REWRITE_ATTEMPTS; attempt += 1) {
     const issues = assessCopyQuality(outputText, body);
     finalIssues = issues;
     if (!issues.length) {
