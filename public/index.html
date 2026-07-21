@@ -51,7 +51,6 @@
 
       <div class="nav-switch">
         <button class="ghost wide active" id="dashboardPageButton">Клиенты</button>
-        <button class="ghost wide" id="clientPageButton">Клиент</button>
       </div>
 
       <label class="sidebar-field">
@@ -77,11 +76,11 @@
     <main class="workspace">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Карточка клиента</p>
+          <p class="eyebrow" id="pageEyebrow">Клиенты</p>
           <h2 id="clientTitle">Новый клиент</h2>
         </div>
-        <div class="top-actions">
-          <button class="ghost" id="exportButton">Экспорт JSON</button>
+        <div class="top-actions client-actions">
+          <button class="ghost danger" id="deleteClientButton">Удалить клиента</button>
           <button class="primary" id="saveButton">Сохранить</button>
         </div>
       </header>
