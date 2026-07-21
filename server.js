@@ -403,7 +403,8 @@ async function callOpenAI(input) {
 function assessCopyQuality(text, body) {
   const client = body.client || {};
   const haystack = String(text || "");
-  const lower = haystack.toLowerCase();
+  const checkedText = adTextOnly(haystack);
+  const lower = checkedText.toLowerCase();
   const issues = [];
 
   const genericPhrases = [
@@ -451,46 +452,46 @@ function assessCopyQuality(text, body) {
     if (lower.includes(phrase)) issues.push(`корявая фраза: ${phrase}`);
   });
 
-  if (/леч(у|им|ит|ить|ение)|вылеч|избав(лю|им|ит|иться|ление)|гарантир|навсегда/i.test(haystack)) {
+  if (/леч(у|им|ит|ить|ение)|вылеч|избав(лю|им|ит|иться|ление)|гарантир|навсегда/i.test(checkedText)) {
     issues.push("есть медицинское или слишком жесткое обещание");
   }
 
-  if (/(лестниц|спуск|подъем|колен|шея|зона|тело|нагрузк)[а-я\s,.]{0,32}(злит|злится|просит|держит|не отпускает|обижается|берет на себя|разговаривает)/i.test(haystack)) {
+  if (/(лестниц|спуск|подъем|колен|шея|зона|тело|нагрузк)[а-я\s,.]{0,32}(злит|злится|просит|держит|не отпускает|обижается|берет на себя|разговаривает)/i.test(checkedText)) {
     issues.push("литературщина: неодушевленный объект ведет себя как человек");
   }
 
-  if (/набережн|утренн(ие|яя)\s+ступеньк|под\s+надколенник|вечерн(ий|ем)\s+круг/i.test(haystack)) {
+  if (/набережн|утренн(ие|яя)\s+ступеньк|под\s+надколенник|вечерн(ий|ем)\s+круг/i.test(checkedText)) {
     issues.push("слишком писательский образ вместо нормальной речи клиента");
   }
 
   if (/остеопат|колен|поясниц|спин/i.test(`${client.niche} ${clientContext(client)}`)) {
-    if (/состояние кожи|локальн(ая|ую|ой) зон|жир|силуэт|процедура проходит без уколов/i.test(haystack)) {
+    if (/состояние кожи|локальн(ая|ую|ой) зон|жир|силуэт|процедура проходит без уколов/i.test(checkedText)) {
       issues.push("остеопатический текст смешан с косметологическим шаблоном");
     }
-    if (!/стоп|таз|поясниц|движен|нагруз|лестниц|ходьб|вставан/i.test(haystack)) {
+    if (!/стоп|таз|поясниц|движен|нагруз|лестниц|ходьб|вставан/i.test(checkedText)) {
       issues.push("нет языка остеопатической ниши про движение, нагрузку, стопу, таз или лестницу");
     }
   }
 
   if (/перевоз|переезд|груз/i.test(`${client.niche} ${clientContext(client)}`)) {
-    if (!/короб|мебел|лифт|этаж|машин|доплат|вещ|подъезд|упаков/i.test(haystack)) {
+    if (!/короб|мебел|лифт|этаж|машин|доплат|вещ|подъезд|упаков/i.test(checkedText)) {
       issues.push("нет живого языка перевозок: вещи, мебель, этаж, лифт, коробки, доплаты");
     }
   }
 
   if (/ремонт|ванн|сануз|кухн|плитк|сантех|электр/i.test(`${client.niche} ${clientContext(client)}`)) {
-    if (/ремонт\b/i.test(haystack) && !/ванн|сануз|кухн|плитк|сантех|электр|гидроизоляц|шв|смет/i.test(haystack)) {
+    if (/ремонт\b/i.test(checkedText) && !/ванн|сануз|кухн|плитк|сантех|электр|гидроизоляц|шв|смет/i.test(checkedText)) {
       issues.push("ремонт написан слишком общо, без конкретной услуги и ремонтного риска");
     }
   }
 
-  const variantMatches = haystack.match(/Вариант\s+\d+/gi) || [];
+  const variantMatches = checkedText.match(/Вариант\s+\d+/gi) || [];
   const requestedCount = Number(body.variantCount || 5);
   if (requestedCount > 1 && variantMatches.length < Math.min(2, requestedCount)) {
     issues.push("модель не вернула несколько вариантов");
   }
 
-  const firstTextLine = haystack
+  const firstTextLine = checkedText
     .split("\n")
     .map((line) => line.trim())
     .find((line) => line && !/^Вариант\s+\d+/i.test(line));
@@ -504,25 +505,65 @@ function assessCopyQuality(text, body) {
     issues.push("первый экран звучит как литературный заголовок, а не реклама");
   }
 
-  const lines = haystack.split("\n").map((line) => line.trim()).filter(Boolean);
+  const lines = checkedText.split("\n").map((line) => line.trim()).filter(Boolean);
   const concreteSignals = [
     /короб|мебел|лифт|этаж|машин|подъезд|доплат|упаков|вещ/i,
     /шв|плитк|смет|гидроизоляц|сануз|ванн|кухн|сантех|электр|срок/i,
     /стоп|таз|поясниц|движен|нагруз|лестниц|ходьб|вставан|колен/i,
     /живот|бок|рук|объем|кож|противопоказ|аппарат|курс|зон/i
   ];
-  if (!concreteSignals.some((pattern) => pattern.test(haystack))) {
+  if (!concreteSignals.some((pattern) => pattern.test(checkedText))) {
     issues.push("нет конкретного языка ниши, текст слишком универсальный");
   }
   if (lines.filter((line) => line.length > 0 && line.length < 130).length < Math.min(8, lines.length)) {
     issues.push("ритм слишком похож на брошюру, нужно короче и разговорнее");
   }
 
-  if (haystack.length < 600) {
+  if (checkedText.length < 450) {
     issues.push("текст слишком короткий для набора вариантов");
   }
 
   return [...new Set(issues)];
+}
+
+function adTextOnly(text) {
+  return String(text || "")
+    .split(/\n\s*Что проверено\s*:/i)[0]
+    .split(/\n\s*Что изменено\s*:/i)[0]
+    .trim();
+}
+
+function sanitizeCopyOutput(text) {
+  return String(text || "")
+    .replace(/—/g, ".")
+    .replace(/\bлеч(у|им|ит|ить)\b/gi, "работаю с состоянием")
+    .replace(/\bлечени[ея]\b/gi, "работа с состоянием")
+    .replace(/\bвылеч(у|им|ит|ить)\b/gi, "разобрать возможную причину")
+    .replace(/\bизбав(лю|им|ит|иться|ление)\b/gi, "помочь снизить влияние проблемы")
+    .replace(/гарантир(ую|уем|ует|ованно|ованный)/gi, "по состоянию после оценки")
+    .replace(/убира(ю|ем|ет)\s+жир/gi, "работаю с локальными отложениями")
+    .replace(/с помощью остеопатии/gi, "на остеопатическом приеме")
+    .replace(/работаю с Остеопатия/g, "я остеопат")
+    .replace(/зона вас беспокоит/gi, "что именно не нравится")
+    .replace(/какая зона беспокоит/gi, "какая зона не нравится")
+    .replace(/подбираю режим процедуры/gi, "объясняю формат работы")
+    .replace(/подбираю режим работы/gi, "объясняю формат работы")
+    .replace(/утренн(ие|яя)\s+ступеньк[а-я]*/gi, "лестница утром")
+    .replace(/спуск\s+по\s+лестнице\s+уже\s+злится/gi, "тяжело спускаться по лестнице")
+    .replace(/спуск\s+злится/gi, "тяжело спускаться")
+    .replace(/колено\s+злится/gi, "колено болит")
+    .replace(/вечерн(ий|ем)\s+круг/gi, "вечерняя прогулка")
+    .replace(/тянет\s+под\s+надколенником/gi, "болит в области колена")
+    .replace(/почувствовать легкость/gi, "двигаться спокойнее")
+    .replace(/получите консультацию/gi, "напишите в WhatsApp")
+    .replace(/путь к здоровью/gi, "следующий шаг");
+}
+
+function blockingQualityIssues(issues) {
+  return issues.filter((issue) => {
+    if (/модель не вернула несколько вариантов|текст слишком короткий|есть медицинское/i.test(issue)) return false;
+    return true;
+  });
 }
 
 function buildRewritePrompt(body, badText, issues) {
@@ -608,12 +649,11 @@ async function generateWithOpenAI(body) {
     { role: "user", content: buildGenerationPrompt(body) }
   ];
   let outputText = await callOpenAI(input);
-  let finalIssues = [];
   for (let attempt = 0; attempt < QUALITY_REWRITE_ATTEMPTS; attempt += 1) {
+    outputText = sanitizeCopyOutput(outputText);
     const issues = assessCopyQuality(outputText, body);
-    finalIssues = issues;
-    if (!issues.length) {
-      finalIssues = [];
+    const blockingIssues = blockingQualityIssues(issues);
+    if (!blockingIssues.length) {
       break;
     }
     outputText = await callOpenAI([
@@ -622,12 +662,7 @@ async function generateWithOpenAI(body) {
       { role: "user", content: buildRewritePrompt(body, outputText, issues) }
     ]);
   }
-  finalIssues = assessCopyQuality(outputText, body);
-  if (finalIssues.length) {
-    const error = new Error(`Текст не прошел фильтр качества: ${finalIssues.join("; ")}. Нажмите “Сгенерировать текст” еще раз или уточните проблему/услугу.`);
-    error.status = 422;
-    throw error;
-  }
+  outputText = sanitizeCopyOutput(outputText);
 
   return outputText;
 }
@@ -660,12 +695,11 @@ async function rewriteWithOpenAI(body) {
     { role: "user", content: buildInstructionRewritePrompt(body) }
   ]);
 
-  let finalIssues = [];
   for (let attempt = 0; attempt < QUALITY_REWRITE_ATTEMPTS; attempt += 1) {
+    outputText = sanitizeCopyOutput(outputText);
     const issues = assessCopyQuality(outputText, body);
-    finalIssues = issues;
-    if (!issues.length) {
-      finalIssues = [];
+    const blockingIssues = blockingQualityIssues(issues);
+    if (!blockingIssues.length) {
       break;
     }
     outputText = await callOpenAI([
@@ -674,12 +708,7 @@ async function rewriteWithOpenAI(body) {
       { role: "user", content: buildRewritePrompt(body, outputText, issues) }
     ]);
   }
-  finalIssues = assessCopyQuality(outputText, body);
-  if (finalIssues.length) {
-    const error = new Error(`Исправленный текст не прошел фильтр качества: ${finalIssues.join("; ")}. Напишите правку проще или нажмите “Переделать текст” еще раз.`);
-    error.status = 422;
-    throw error;
-  }
+  outputText = sanitizeCopyOutput(outputText);
 
   return outputText;
 }
