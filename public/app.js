@@ -22,16 +22,6 @@ const defaultClient = () => ({
   procedures: "",
   notes: "",
   problem: "",
-  cta: "",
-  proofYears: "",
-  proofPeople: "",
-  proofProblem: "",
-  leads7d: "",
-  cpl: "",
-  sales: "",
-  targetCpl: "",
-  budget: "",
-  adGeo: "",
   facts: "",
   brief: "",
   files: [],
@@ -184,6 +174,10 @@ async function handleLogin(event) {
     fillForm(getActiveClient());
     applyLogin(user);
   } catch (error) {
+    if (window.location.protocol !== "file:") {
+      elements.loginError.textContent = error.message || "Не получилось войти";
+      return;
+    }
     if (USERS[user] !== password) {
       elements.loginError.textContent = error.message || "Неверный пароль";
       return;
@@ -356,7 +350,7 @@ function renderClientTable() {
 
   if (!clients.length) {
     const row = document.createElement("tr");
-    row.innerHTML = `<td class="empty-row" colspan="7">У этого таргетолога пока нет клиентов</td>`;
+    row.innerHTML = `<td class="empty-row" colspan="6">У этого таргетолога пока нет клиентов</td>`;
     elements.clientTableBody.appendChild(row);
     return;
   }
@@ -490,327 +484,6 @@ function getTemplateName(niche) {
   return names[niche] || names.custom;
 }
 
-function autoAngle(client) {
-  const service = clientTextContext(client).toLowerCase();
-  if (client.niche === "bodywork_pain" || /остеопат|мануаль|боль|колен|поясниц|спин|ше[ея]/i.test(service)) {
-    if (service.includes("колен")) return "боль в колене мешает ходить, вставать и подниматься по лестнице";
-    if (service.includes("поясниц")) return "боль в пояснице мешает нормально двигаться в течение дня";
-    if (service.includes("спин")) return "боль в спине возвращается после нагрузки или долгого сидения";
-    return "боль мешает обычным движениям";
-  }
-  if (client.niche === "repair") {
-    if (service.includes("кух")) return "ошибки с розетками, техникой и фартуком";
-    if (service.includes("ван") || service.includes("сануз")) return "доплаты, протечки и переделки после старта";
-    if (service.includes("плит")) return "ровная плитка без кривых швов и переделок";
-    return "понятная смета до начала работ";
-  }
-  if (client.niche === "moving") return "самая дешевая компания может стать дорогой в день переезда";
-  if (service.includes("iconic") || service.includes("жир") || service.includes("объем")) return "локальная зона, которая плохо уходит при питании и спорте";
-  return "конкретная проблема, которую человек уже хочет решить";
-}
-
-function anglePack(client) {
-  const service = clientTextContext(client).toLowerCase();
-  const customProblem = client.problem ? [client.problem] : [];
-
-  if (client.niche === "repair") {
-    if (service.includes("кух")) {
-      return [
-        ...customProblem,
-        "розетки и выводы под технику продуманы до фартука",
-        "кухня готова к гарнитуру без переделок после установки",
-        "смета понятна до начала работ",
-        "электрика, сантехника и фартук идут в правильном порядке",
-        "не нужно снова вызывать мастера из-за каждой мелочи"
-      ];
-    }
-    if (service.includes("ван") || service.includes("сануз")) {
-      return [
-        ...customProblem,
-        "смета понятна до демонтажа старой ванной",
-        "гидроизоляция и сантехника сделаны до плитки",
-        "меньше риска протечек и переделок",
-        "плитка, трубы и электрика идут в правильном порядке",
-        "ванная не превращается в ремонт без конца"
-      ];
-    }
-    return [
-      ...customProblem,
-      "понятная смета до начала работ",
-      "ремонт не растягивается без объяснений",
-      "материалы и этапы понятны заранее",
-      "не нужно искать мастера на каждый этап",
-      "меньше риска переделок после сдачи"
-    ];
-  }
-
-  if (client.niche === "moving") {
-    return [
-      ...customProblem,
-      "самая дешевая компания может стать дорогой в день переезда",
-      "дешевая цена на входе превращается в доплаты у подъезда",
-      "вещи уже в коридоре, а цена начинает расти",
-      "день переезда не превращается в хаос",
-      "стоимость понятна до выезда",
-      "мебель разбирают, собирают и перевозят аккуратно",
-      "коробки, этаж и лифт уточняются заранее",
-      "не нужно таскать тяжелые вещи самому"
-    ];
-  }
-
-  if (client.niche === "bodywork_pain" || /остеопат|мануаль|боль|колен|поясниц|спин/i.test(service)) {
-    return [
-      ...customProblem,
-      "боль в колене мешает ходить и подниматься по лестнице",
-      "боль возвращается после нагрузки",
-      "проблема может быть не только в месте, где болит",
-      "обычные движения снова хочется делать осторожно",
-      "человек устал жить с ожиданием боли"
-    ];
-  }
-
-  if (client.niche === "beauty_body") {
-    return [
-      ...customProblem,
-      "локальная зона плохо уходит при питании и спорте",
-      "живот мешает посадке одежды",
-      "бока портят силуэт в любимых вещах",
-      "бедра и рельеф кожи хочется сделать ровнее",
-      "нужна процедура без уколов и долгого восстановления"
-    ];
-  }
-
-  return [
-    ...customProblem,
-    "конкретная проблема, которую человек уже хочет решить",
-    "страх выбрать неправильно",
-    "непонятно, с чего начать",
-    "хочется результата без лишнего риска",
-    "нужен первый шаг, который снимает неопределенность"
-  ];
-}
-
-function researchLanguage(client) {
-  if (client.language === "he" || client.language === "ru_he") {
-    const hebrewNote = "Для иврита обязателен отдельный native phrase check: искать термины на иврите, не переводить русский шаблон дословно, проверять заголовки, услугу, боль, CTA и обещания как цельные фразы.";
-    if (client.language === "he") return hebrewNote;
-    return `${hebrewNote} Для русского текста параллельно сохраняем русскую логику и не смешиваем языки в одном варианте.`;
-  }
-
-  if (client.niche === "repair") {
-    return "Рынок говорит конкретными услугами: ремонт ванной, ремонт санузла, ремонт кухни, укладка плитки, электрика под технику, разводка сантехники, гидроизоляция, смета, замер, гарантия.";
-  }
-  if (client.niche === "moving") {
-    return "Рынок говорит через переезд, упаковку, разборку мебели, этаж, лифт, объем вещей, цену до выезда, аккуратную перевозку, дату и время.";
-  }
-  if (client.niche === "beauty_body") {
-    return "Рынок говорит мягко: локальные жировые отложения, коррекция фигуры, уменьшение объемов, работа с рельефом кожи, RF, кавитация, вакуумный RF, без уколов и долгого восстановления.";
-  }
-  if (client.niche === "bodywork_pain") {
-    return "Рынок говорит через конкретную боль и обычные движения: боль в колене, боль в пояснице, ходить, вставать со стула, подниматься по лестнице, подвижность, нагрузка, стопа, таз, поясница. Нельзя обещать лечение или гарантированный результат.";
-  }
-  return "Нужна интернет-проверка языка ниши перед финальным текстом.";
-}
-
-function generateDraft(client) {
-  const angle = normalizeAngle(client.problem || (elements.angleMode.value === "auto" ? autoAngle(client) : elements.angleMode.options[elements.angleMode.selectedIndex].text), client);
-  const service = client.service || "услуга";
-  const facts = formatAllowedFacts(client.facts);
-  const cta = client.cta || "WhatsApp";
-  const proof = buildProof(client);
-
-  if (client.niche === "repair") return repairTemplate(service, angle, client.location, facts, cta, proof);
-  if (client.niche === "moving") return movingTemplate(service, angle, client.location, facts, cta, proof);
-  if (client.niche === "beauty_body") return beautyTemplate(client.name, service, angle, facts, cta, proof);
-  if (client.niche === "bodywork_pain" || /остеопат|мануаль/i.test(service)) return bodyworkPainTemplate(client.name, service, angle, facts, cta, proof);
-  return customTemplate(client.name, service, angle, facts, cta, proof);
-}
-
-function generateDraftForAngle(client, rawAngle) {
-  const angle = normalizeAngle(rawAngle, client);
-  const service = client.service || "услуга";
-  const facts = formatAllowedFacts(client.facts);
-  const cta = client.cta || "WhatsApp";
-  const proof = buildProof(client);
-
-  if (client.niche === "repair") return repairTemplate(service, angle, client.location, facts, cta, proof);
-  if (client.niche === "moving") return movingTemplate(service, angle, client.location, facts, cta, proof);
-  if (client.niche === "beauty_body") return beautyTemplate(client.name, service, angle, facts, cta, proof);
-  if (client.niche === "bodywork_pain" || /остеопат|мануаль/i.test(service)) return bodyworkPainTemplate(client.name, service, angle, facts, cta, proof);
-  return customTemplate(client.name, service, angle, facts, cta, proof);
-}
-
-function normalizeAngle(rawAngle, client) {
-  const text = String(rawAngle || "").trim();
-  if (!text) return autoAngle(client);
-  const lower = text.toLowerCase();
-  if ((lower.includes("колен") && lower.includes("поясниц")) || (lower.includes(",") && /боль|боли/.test(lower))) {
-    return lower.includes("колен")
-      ? "боль в колене мешает ходить, вставать и подниматься по лестнице"
-      : text.split(",")[0].trim();
-  }
-  return text;
-}
-
-function formatAllowedFacts(facts) {
-  if (!facts) return "";
-  const lines = facts
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => !/нельзя|запрещ|не использовать|не обещать/i.test(line));
-  return lines.length ? `\n\n${lines.join("\n")}` : "";
-}
-
-function buildProof(client) {
-  const years = client.proofYears;
-  const people = client.proofPeople;
-  const problem = client.proofProblem || client.problem || "этой проблемой";
-  if (!years && !people) return "";
-
-  const isSoftNiche = client.niche === "beauty_body" || client.niche === "bodywork_pain" || /остеопат|мануаль|косметолог|массаж/i.test(client.service);
-  if (years && people && isSoftNiche) {
-    return `\n\nЗа последние ${years} лет ко мне обращались больше ${people} людей с запросом: ${problem}.`;
-  }
-  if (years && people) {
-    return `\n\nЗа последние ${years} лет мы помогли больше ${people} людям решить задачу: ${problem}.`;
-  }
-  if (years && isSoftNiche) {
-    return `\n\nЗа последние ${years} лет я часто видел людей, у которых ${problem} мешала обычной жизни.`;
-  }
-  if (people && isSoftNiche) {
-    return `\n\nКо мне обращались больше ${people} людей с запросом: ${problem}.`;
-  }
-  if (years) return `\n\nЗа последние ${years} лет мы много раз работали с задачей: ${problem}.`;
-  return `\n\nМы помогли больше ${people} людям решить задачу: ${problem}.`;
-}
-
-function beautyTemplate(name, service, angle, facts, cta, proof) {
-  const specialist = name && !name.includes("Новый") ? name : "специалист";
-  return `⚡ Помогу разобраться с зоной, которая давно не нравится в зеркале ⚡
-
-Иногда вес уже почти устраивает, но ${angle}.
-
-И это не всегда решается еще одной диетой или еще одной тренировкой.
-
-Меня зовут ${specialist}. Я работаю с ${service}.
-
-На приеме я смотрю, какая зона беспокоит вас больше всего, оцениваю состояние кожи и подбираю режим процедуры.
-
-Цель не в том, чтобы обещать чудо за один сеанс.
-
-Цель: помочь телу выглядеть ровнее, подтянутее и легче в конкретной зоне.
-
-Процедура проходит без уколов, операции и долгого восстановления.${proof}${facts}
-
-Напишите в ${cta}. Расскажите, какая зона вас беспокоит, и я подскажу, подходит ли вам эта процедура.`;
-}
-
-function bodyworkPainTemplate(name, service, angle, facts, cta, proof) {
-  const specialist = name && !name.includes("Новый") ? name : "специалист";
-  const serviceName = /остеопат/i.test(service) ? "остеопат" : service;
-  return `Если ${angle}, проблема может быть не только в месте, где болит.
-
-Меня зовут ${specialist}. Я ${serviceName} и работаю с болью через восстановление нормального движения тела.
-
-На приеме я смотрю, как вы двигаетесь, где появляется боль и какие зоны могут давать лишнюю нагрузку.
-
-Если речь о колене, я проверяю не только коленный сустав. Смотрю стопу, таз, поясницу, походку и то, как нога работает в движении.
-
-${proof.trim() ? proof.trim() + "\n\n" : ""} 
-
-Цель не в том, чтобы пообещать чудо за один сеанс.
-
-Цель: понять, почему боль возвращается, и помочь телу двигаться легче в обычной жизни.
-
-Если была свежая травма, колено сильно опухло, горячее или вы не можете наступить на ногу, сначала нужна медицинская проверка.${facts}
-
-Если боль тянется давно или возвращается при движении, напишите в ${cta}. Расскажите, где и как болит, и я подскажу, есть ли смысл прийти на прием.`;
-}
-
-function repairTemplate(service, angle, location, facts, cta, proof) {
-  const where = location ? `\n\nРаботаем: ${location}.` : "";
-  return `${capitalize(service || "Ремонт")} не должен превращаться в бесконечное “тут еще надо докупить”.
-
-Сначала кажется, что главное выбрать материалы и договориться с мастером.
-
-А потом начинается самое неприятное: ${angle}.
-
-Мы сначала смотрим объект, проверяем сложные места и считаем объем работ до старта.
-
-Так вы понимаете, что входит в работу, какие материалы нужны и где могут появиться дополнительные расходы.
-
-Что обычно уточняем перед расчетом:
-
-✅ состояние стен и пола
-✅ электрику и сантехнику
-✅ мокрые зоны
-✅ материалы
-✅ сроки
-✅ что нужно демонтировать и вывезти
-
-Наша задача: чтобы ремонт не вышел из-под контроля после того, как старое уже разобрали.${proof}${where}${facts}
-
-Напишите в ${cta}. Уточним задачу, размер помещения и состояние объекта, чтобы заранее понять объем работ и примерную стоимость.`;
-}
-
-function movingTemplate(service, angle, location, facts, cta, proof) {
-  const where = location ? `\n\nРаботаем: ${location}.` : "";
-  if (/дешев|дорог|доплат|цена.*раст|у подъезда/i.test(angle)) {
-    return `Самая дешевая компания для ${service || "переезда"} часто кажется хорошей идеей.
-
-До момента, когда машина уже стоит у подъезда.
-
-И тут начинается:
-
-✅ “Это негабарит”
-✅ “За этаж отдельно”
-✅ “Коробок больше, чем вы сказали”
-✅ “Мебель надо разбирать, это доплата”
-✅ “В машину не влезает, нужна вторая”
-
-И вы уже не выбираете спокойно.
-
-Ваши вещи стоят в коридоре, день сорван, а цена растет прямо на месте.
-
-Нормальный переезд начинается не с самой низкой цифры.
-
-Он начинается с понятного расчета: сколько вещей, какой этаж, есть ли лифт, нужна ли упаковка, разборка мебели и какая машина подойдет.
-
-Мы заранее уточняем детали, считаем объем работ и говорим, что входит в стоимость.
-
-Чтобы переезд не превратился в дешевое объявление, которое в итоге вышло дороже всех.${proof}${where}${facts}
-
-Напишите в ${cta}. Рассчитаем переезд заранее и договоримся на удобное время.`;
-  }
-
-  return `Когда вы слышите “${service || "переезд"}”, что первое приходит в голову?
-
-Коробки. Мебель. Лифт. Лестница. Время. И мысль, что день может легко превратиться в хаос.
-
-Мы понимаем, почему ${service || "эта услуга"} часто нервирует: ${angle}.
-
-Поэтому заранее уточняем объем вещей, этаж, лифт, маршрут, упаковку и время.
-
-Так вы понимаете, что входит в работу, и не узнаете о доплате уже у подъезда.
-
-Мы разбираем и собираем мебель, помогаем с упаковкой и аккуратно перевозим вещи.${proof}${where}${facts}
-
-Напишите в ${cta}. Уточним детали и поможем понять стоимость до дня переезда.`;
-}
-
-function customTemplate(name, service, angle, facts, cta, proof) {
-  return `Если вас беспокоит ${angle}, важно сначала понять, что именно нужно решить.
-
-Меня зовут ${name || "специалист"}. Я работаю с услугой: ${service}.
-
-Перед тем как предлагать решение, я уточняю задачу, ожидания, ограничения и то, что уже пробовали раньше.
-
-Так следующий шаг становится понятнее, а решение не выглядит как случайный совет.${proof}${facts}
-
-Напишите в ${cta}. Расскажите коротко о ситуации, и я подскажу, с чего лучше начать.`;
-}
-
 function crookedPhrasePass(text, client) {
   const replacements = [
     [/с помощью остеопатии/gi, "на остеопатическом приеме"],
@@ -820,7 +493,7 @@ function crookedPhrasePass(text, client) {
     [/я работаю с остеопатия/gi, "я остеопат"],
     [/работаю с Остеопатия/g, "я остеопат"],
     [/с Остеопатия/g, "как остеопат"],
-    [/индивидуальный подход/gi, "смотрю вашу ситуацию и подбираю процедуру по зоне"],
+    [/индивидуальный подход/gi, "смотрю конкретную задачу перед тем, как предлагать следующий шаг"],
     [/качественн(ая|ые|ый) услуг(а|и|у)/gi, "понятная работа с конкретной задачей"],
     [/комплексное решение/gi, "несколько шагов под одну задачу"],
     [/в разы лучше/gi, "заметно легче"],
@@ -863,6 +536,9 @@ function stopCranePass(text, client) {
   if (/[?]\s*$/.test(text.split("\n").find(Boolean) || "")) warnings.push("первый экран начинается вопросом");
   if (/избав(лю|ит|им)|вылеч(у|ит|им)|гарант/gi.test(text)) warnings.push("слишком сильное обещание");
   if (/спина.*колен.*шея|акне.*морщин.*пигмент/gi.test(text)) warnings.push("слишком много проблем в одном тексте");
+  if (/утренн(ие|яя)\s+ступеньк|спуск.*злит|колено.*злит|вечерн(ий|ем)\s+круг|тянет\s+под\s+надколенник|набережн/i.test(text)) warnings.push("литературщина вместо нормальной речи клиента");
+  if (/индивидуальный подход|комплексное решение|качество жизни|путь к здоровью|почувствовать легкость|получите консультацию/gi.test(text)) warnings.push("пластмассовые рекламные фразы");
+  if (/с помощью остеопатии|работаю с Остеопатия|зона вас беспокоит|подбираю режим процедуры/gi.test(text)) warnings.push("корявые фразы");
   if (!text.toLowerCase().includes((client.service || "").split(" ")[0].toLowerCase())) warnings.push("услуга может быть недостаточно ясно названа");
 
   return {
@@ -903,9 +579,8 @@ async function generate() {
       warning: false
     }
   ];
-  elements.finalOutput.value = "Генерирую текст...\n\nЭто может занять до минуты: система проверяет интернет, пишет варианты и прогоняет стоп-краны.";
+  client.finalOutput = "Генерирую текст...\n\nЭто может занять до минуты: система проверяет интернет, пишет варианты и прогоняет стоп-краны.";
   fillForm(client);
-  elements.finalOutput.value = "Генерирую текст...\n\nЭто может занять до минуты: система проверяет интернет, пишет варианты и прогоняет стоп-краны.";
   persistOnly();
   renderAll();
 
@@ -984,20 +659,38 @@ async function generate() {
       renderAll();
       return;
     }
-    client.finalOutput = `AI-генерация пока не подключена.\n\nПричина: ${error.message}\n\nЧто нужно сделать:\n1. В Render открыть сервис ad-client-studio.\n2. Зайти в Environment.\n3. Добавить переменную OPENAI_API_KEY.\n4. Перезапустить сервис.\n\nДо этого сайт не должен притворяться, что реально проверил интернет и написал сильный текст.`;
+    if (/не прошел фильтр качества/i.test(error.message)) {
+      client.finalOutput = error.message;
+      client.process = [
+        {
+          title: "Стоп-кран качества",
+          body: "Сервер не выпустил текст как финальный, потому что он нарушил наши правила.",
+          warning: true
+        },
+        {
+          title: "Что делать",
+          body: "Нажмите генерацию еще раз или уточните одну конкретную проблему, услугу, географию, цену и ограничения."
+        },
+        {
+          title: "Правило",
+          body: "Лучше остановить плохой текст, чем показать таргетологу дурацкую рекламу как готовую."
+        }
+      ];
+      fillForm(client);
+      persistOnly();
+      renderAll();
+      return;
+    }
+    client.finalOutput = `AI-генерация не завершилась.\n\nПричина: ${error.message}\n\nЕсли это повторяется, проверьте данные клиента и попробуйте еще раз.`;
     client.process = [
       {
         title: "Стоп",
-        body: "Настоящая генерация не запущена, потому что сервер не получил доступ к OpenAI API.",
+        body: "Сервер не вернул готовый рекламный текст.",
         warning: true
       },
       {
-        title: "Почему старые тексты были плохими",
-        body: "Раньше работал локальный шаблон без модели и без настоящего интернета. Это годится только как макет интерфейса."
-      },
-      {
-        title: "Что дальше",
-        body: "Подключаем OPENAI_API_KEY, и кнопка начнет генерировать через AI + web search."
+        title: "Что проверить",
+        body: "Услуга, проблемы, процедуры/услуги, география, цены и ограничения должны быть заполнены без каши из разных ниш."
       }
     ];
     fillForm(client);
@@ -1006,54 +699,6 @@ async function generate() {
     return;
   }
 
-  const research = researchLanguage(client);
-  const count = Number(elements.variantCount.value || 5);
-  const angles = uniqueAngles(anglePack(client)).slice(0, count);
-  const languageModes = client.language === "ru_he" ? ["ru", "he"] : [client.language || "ru"];
-  const results = [];
-  languageModes.forEach((languageMode) => {
-    angles.forEach((angle) => {
-      const draft = languageMode === "he" ? hebrewPlaceholder(client, angle) : generateDraftForAngle(client, angle);
-    const phrasePass = crookedPhrasePass(draft, client);
-    const stopPass = stopCranePass(phrasePass.text, client);
-      results.push({ languageMode, angle, text: phrasePass.text, phrasePass, stopPass });
-    });
-  });
-  const finalText = results.map((item, index) => {
-    const langLabel = item.languageMode === "he" ? "Иврит" : "Русский";
-    return `Вариант ${index + 1}. ${langLabel}. ${capitalize(item.angle)}\n\n${item.text}`;
-  }).join("\n\n---\n\n");
-  const changedCount = results.filter((item) => !item.phrasePass.summary.startsWith("Кривые шаблонные")).length;
-  const stopSummaries = [...new Set(results.map((item) => item.stopPass.summary))].join(" ");
-
-  client.finalOutput = finalText;
-  client.process = [
-    {
-      title: "Интернет-проверка",
-      body: research,
-      warning: false
-    },
-    {
-      title: "Выбранный шаблон",
-      body: `${getTemplateName(client.niche)}. Сгенерировано вариантов: ${results.length}. Углы: ${angles.join("; ")}.`
-    },
-    {
-      title: "Фильтр корявых фраз",
-      body: changedCount ? `Фильтр сработал в ${changedCount} вариантах. Длинные тире проверены.` : "Кривые шаблонные фразы не найдены. Длинные тире проверены."
-    },
-    {
-      title: "Стоп-краны",
-      body: stopSummaries
-    },
-    {
-      title: "Финал",
-      body: "Текст готов для ручной правки или запуска следующего прогона."
-    }
-  ];
-
-  fillForm(client);
-  persistOnly();
-  renderAll();
 }
 
 async function rewriteTextWithInstruction() {
@@ -1125,34 +770,19 @@ async function rewriteTextWithInstruction() {
   }
 }
 
-function hebrewPlaceholder(client, angle) {
-  return `Иврит-версия не сгенерирована в локальном прототипе.
-
-Почему: для иврита нельзя переводить русский шаблон дословно. Нужно сначала проверить реальные фразы в нише на иврите, затем прогнать native phrase check и фильтр корявых фраз.
-
-Что будет проверяться:
-
-✅ название услуги на иврите
-✅ как люди описывают проблему
-✅ нормальные CTA
-✅ риск буквального перевода
-✅ медицинские или косметологические обещания
-
-Угол для будущей иврит-версии:
-${angle}
-
-После подключения AI + интернет-поиска здесь будет отдельный текст на иврите, без смешивания с русским.`;
-}
-
-function uniqueAngles(angles) {
-  return [...new Set(angles.map((angle) => String(angle || "").trim()).filter(Boolean))];
-}
-
 function manualCheck() {
   const client = getActiveClient();
   if (!client) return;
   readForm(client);
-  const source = client.finalOutput || generateDraft(client);
+  const source = client.finalOutput;
+  if (!source.trim()) {
+    client.process = [
+      { title: "Нечего проверять", body: "Сначала сгенерируйте или вставьте текст. Ручной прогон не должен сам создавать текст по старому локальному шаблону.", warning: true }
+    ];
+    persistOnly();
+    renderAll();
+    return;
+  }
   const phrasePass = crookedPhrasePass(source, client);
   const rewritePass = hardStopCraneRewrite(phrasePass.text, client);
   const stopPass = stopCranePass(rewritePass.text, client);
@@ -1173,7 +803,7 @@ function hardStopCraneRewrite(text, client) {
   const before = cleaned;
   const replacements = [
     [/леч(у|им|ит|ить|ение)\b/gi, "работаю с состоянием"],
-    [/вылеч(у|им|ит|ить)\b/gi, "помочь разобраться с причиной"],
+    [/вылеч(у|им|ит|ить)\b/gi, "разобрать возможную причину"],
     [/избав(лю|им|ит|иться|ление)\b/gi, "помочь снизить влияние проблемы"],
     [/гарантир(ую|уем|ует|ованно|ованный)/gi, "по состоянию после оценки"],
     [/убира(ю|ем|ет)\s+жир/gi, "работаю с локальными отложениями"],
@@ -1181,7 +811,16 @@ function hardStopCraneRewrite(text, client) {
     [/чудо\s+за\s+один\s+сеанс/gi, "быстрые обещания без оценки"],
     [/с помощью остеопатии/gi, "на остеопатическом приеме"],
     [/Я работаю с Остеопатия/g, "Я остеопат"],
-    [/работаю с Остеопатия/g, "я остеопат"]
+    [/работаю с Остеопатия/g, "я остеопат"],
+    [/утренн(ие|яя)\s+ступеньк[а-я]*/gi, "лестница утром"],
+    [/спуск\s+по\s+лестнице\s+уже\s+злится/gi, "тяжело спускаться по лестнице"],
+    [/спуск\s+злится/gi, "тяжело спускаться"],
+    [/колено\s+злится/gi, "колено болит"],
+    [/вечерн(ий|ем)\s+круг/gi, "вечерняя прогулка"],
+    [/тянет\s+под\s+надколенником/gi, "болит в области колена"],
+    [/почувствовать легкость/gi, "двигаться спокойнее"],
+    [/получите консультацию/gi, "напишите в WhatsApp"],
+    [/путь к здоровью/gi, "следующий шаг"]
   ];
 
   replacements.forEach(([pattern, replacement]) => {
@@ -1222,8 +861,6 @@ async function handleFiles(files) {
 
     if (isTextReadable(file)) {
       record.text = await file.text();
-      client.notes = [client.notes || client.brief, `\n\n[Файл: ${file.name}]\n${record.text.slice(0, 6000)}`].filter(Boolean).join("").trim();
-      client.brief = client.notes;
     }
     client.files.push(record);
   }
@@ -1299,7 +936,6 @@ function startNewService() {
   client.procedures = "";
   client.price = "";
   client.notes = "";
-  client.proofProblem = "";
   client.brief = "";
   client.finalOutput = "";
   client.approvedText = "";
