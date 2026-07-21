@@ -287,6 +287,10 @@ body[data-page="clients"] .client-actions {
   display: none;
 }
 
+.service-reset {
+  margin-top: 14px;
+}
+
 .grid {
   display: grid;
   gap: 18px;
