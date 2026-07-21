@@ -1249,6 +1249,7 @@ function addClient() {
 
 function showPage(page) {
   const isDashboard = page === "dashboard";
+  document.body.dataset.page = isDashboard ? "clients" : "client";
   elements.dashboardPage.classList.toggle("active-page", isDashboard);
   elements.clientPage.classList.toggle("active-page", !isDashboard);
   elements.dashboardPageButton.classList.toggle("active", isDashboard);
