@@ -169,6 +169,11 @@ h3 {
   margin: 16px 0;
 }
 
+body[data-page="client"] .search-wrap,
+body[data-page="client"] .client-list {
+  display: none;
+}
+
 .sidebar-field {
   margin: 14px 0 0;
 }
