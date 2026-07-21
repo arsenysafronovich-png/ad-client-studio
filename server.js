@@ -16,6 +16,7 @@ const USERS = {
   "Алина": process.env.PASSWORD_ALINA || "alina"
 };
 
+const SESSION_SECRET = process.env.SESSION_SECRET || process.env.OPENAI_API_KEY || "ad-client-studio-local-secret";
 const sessions = new Map();
 
 const COPY_RULES = `
@@ -627,9 +628,46 @@ function parseCookies(req) {
   );
 }
 
+function signSessionPayload(payload) {
+  return crypto
+    .createHmac("sha256", SESSION_SECRET)
+    .update(payload)
+    .digest("base64url");
+}
+
+function createSessionToken(user) {
+  const payload = Buffer.from(JSON.stringify({
+    user,
+    exp: Date.now() + 1000 * 60 * 60 * 24 * 30
+  })).toString("base64url");
+  return `v1.${payload}.${signSessionPayload(payload)}`;
+}
+
+function verifySessionToken(token) {
+  const parts = String(token || "").split(".");
+  if (parts.length !== 3 || parts[0] !== "v1") return null;
+
+  const [, payload, signature] = parts;
+  const expected = signSessionPayload(payload);
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (signatureBuffer.length !== expectedBuffer.length) return null;
+  if (!crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) return null;
+
+  try {
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    if (!data.user || !USERS[data.user]) return null;
+    if (!data.exp || Date.now() > data.exp) return null;
+    return data.user;
+  } catch {
+    return null;
+  }
+}
+
 function currentUser(req) {
   const token = parseCookies(req).acs_session;
-  return token ? sessions.get(token) : null;
+  if (!token) return null;
+  return verifySessionToken(token) || sessions.get(token) || null;
 }
 
 function serveStatic(req, res) {
@@ -668,8 +706,7 @@ async function handleApi(req, res) {
       sendJson(res, 401, { error: "Неверный пароль" });
       return;
     }
-    const token = crypto.randomBytes(24).toString("hex");
-    sessions.set(token, body.user);
+    const token = createSessionToken(body.user);
     res.setHeader("Set-Cookie", `acs_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000`);
     sendJson(res, 200, { user: body.user });
     return;
