@@ -681,6 +681,24 @@ async function generate() {
       renderAll();
       return;
     }
+    if (/слишком долго отвечает/i.test(error.message)) {
+      client.finalOutput = error.message;
+      client.process = [
+        {
+          title: "Таймаут AI",
+          body: "Сервер остановил генерацию, чтобы кнопка не висела бесконечно.",
+          warning: true
+        },
+        {
+          title: "Что сделать",
+          body: "Нажмите генерацию еще раз или выберите меньше вариантов. Web search иногда отвечает медленно."
+        }
+      ];
+      fillForm(client);
+      persistOnly();
+      renderAll();
+      return;
+    }
     client.finalOutput = `AI-генерация не завершилась.\n\nПричина: ${error.message}\n\nЕсли это повторяется, проверьте данные клиента и попробуйте еще раз.`;
     client.process = [
       {
