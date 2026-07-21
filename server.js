@@ -130,17 +130,17 @@ function compact(value) {
 function validateGenerationInput(body) {
   const client = body.client || {};
   const service = compact(client.service);
-  const problem = compact(client.problem);
   const brief = compact(client.brief);
   const facts = compact(client.facts);
   const researchNotes = compact(client.researchNotes);
-  const enoughContext = [service, problem, brief, facts, researchNotes]
+  const fileText = compact((client.files || []).map((file) => file.content || file.name || "").join(" "));
+  const enoughContext = [service, brief, facts, researchNotes, fileText]
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();
 
-  if (!service || !problem || enoughContext.length < 35) {
-    const error = new Error("Недостаточно брифа: заполните услугу, одну главную проблему и хотя бы пару фактов. Иначе система будет придумывать мусор.");
+  if (!service || enoughContext.length < 35) {
+    const error = new Error("Недостаточно брифа: заполните услугу и общий бриф клиента или загрузите файл. Иначе система будет придумывать мусор.");
     error.status = 422;
     throw error;
   }
@@ -188,15 +188,8 @@ function buildGenerationPrompt(body) {
 Таргетолог: ${client.mediaBuyer || ""}
 География: ${client.location || ""}
 Услуга: ${client.service || ""}
-Главная проблема: ${client.problem || ""}
-CTA: ${client.cta || "WhatsApp"}
-Опыт/лет: ${client.proofYears || ""}
-Соцдоказательство/людей: ${client.proofPeople || ""}
-Проблема для соцдоказательства: ${client.proofProblem || ""}
-Факты и ограничения:
-${client.facts || ""}
 
-Бриф:
+Общий бриф клиента. Из него самостоятельно достань: главную проблему, следующий шаг, опыт, соцдоказательство, ограничения, цены и важные факты. Не выдумывай то, чего тут нет:
 ${client.brief || ""}
 
 Заметки для интернет-проверки:
