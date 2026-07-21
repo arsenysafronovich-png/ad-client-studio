@@ -162,6 +162,7 @@ function applyLogin(user) {
   elements.mediaBuyerSelect.disabled = user !== "Арик";
   elements.loginScreen.classList.add("hidden");
   localStorage.setItem(SESSION_KEY, user);
+  showPage("dashboard");
   renderAll();
 }
 
