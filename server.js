@@ -139,7 +139,7 @@ const COPY_REFERENCES = `
 
 Боль в колене не всегда начинается в самом колене.
 
-Иногда колено берет на себя нагрузку из-за стопы, таза, поясницы или того, как человек двигается.
+Иногда на колено влияет то, как работает стопа, таз, поясница или походка.
 
 Меня зовут Яков. Я остеопат.
 
@@ -154,21 +154,21 @@ const COPY_REFERENCES = `
 
 Референс для косметологии/массажа:
 
-Иногда вес уже почти устраивает, но одна зона все равно раздражает в зеркале.
+Вес почти устраивает, но одна зона все равно раздражает в зеркале.
 
 Это не всегда решается еще одной диетой или еще одной тренировкой.
 
 Меня зовут [имя]. Я работаю с [услуга].
 
-На приеме я смотрю конкретную зону, состояние кожи и противопоказания. После этого объясняю, какой режим работы подойдет и чего ждать без сказок про чудо за один сеанс.
+На приеме я смотрю конкретную зону, состояние кожи и противопоказания. После этого объясняю, какой формат работы подойдет и чего ждать без сказок про чудо за один сеанс.
 
 Процедура проходит без уколов, операции и долгого восстановления.
 
-Напишите в WhatsApp. Расскажите, какая зона беспокоит, и я подскажу, подходит ли вам эта процедура.
+Напишите в WhatsApp. Расскажите, какая зона не нравится, и я подскажу, есть ли смысл прийти на процедуру.
 
 Референс для локального аппарата/косметологии:
 
-Иногда вес уже почти устраивает, но одна зона все равно раздражает в зеркале.
+Вес почти устраивает, но одна зона все равно раздражает в зеркале.
 
 Живот. Бока. Руки. Зона над коленями.
 
@@ -180,7 +180,7 @@ const COPY_REFERENCES = `
 
 Процедура проходит без уколов, операции и долгого восстановления.
 
-Напишите в WhatsApp. Расскажите, какая зона беспокоит, и я подскажу, подходит ли вам эта процедура.
+Напишите в WhatsApp. Расскажите, какая зона не нравится, и я подскажу, есть ли смысл прийти на процедуру.
 `;
 
 function compact(value) {
@@ -245,6 +245,32 @@ function readState() {
 function writeState(state) {
   ensureDataDir();
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+}
+
+function stateForUser(state, user) {
+  if (user === "Арик") return state;
+  const clients = (state.clients || []).filter((client) => (client.mediaBuyer || "Таня") === user);
+  return {
+    clients,
+    activeId: clients.some((client) => client.id === state.activeId) ? state.activeId : (clients[0]?.id || null)
+  };
+}
+
+function mergeStateForUser(existingState, incomingState, user) {
+  if (user === "Арик") return incomingState;
+
+  const incomingClients = (incomingState.clients || []).map((client) => ({
+    ...client,
+    mediaBuyer: user
+  }));
+  const otherClients = (existingState.clients || []).filter((client) => (client.mediaBuyer || "Таня") !== user);
+
+  return {
+    clients: [...incomingClients, ...otherClients],
+    activeId: incomingClients.some((client) => client.id === incomingState.activeId)
+      ? incomingState.activeId
+      : existingState.activeId
+  };
 }
 
 function buildGenerationPrompt(body) {
@@ -393,7 +419,9 @@ function assessCopyQuality(text, body) {
     "работаю с остеопатия",
     "с остеопатия",
     "зона вас беспокоит",
+    "какая зона беспокоит",
     "подбираю режим процедуры",
+    "подбираю режим работы",
     "утренние ступеньки",
     "спуск по лестнице уже злится",
     "спуск злится",
@@ -566,14 +594,25 @@ async function generateWithOpenAI(body) {
     { role: "user", content: buildGenerationPrompt(body) }
   ];
   let outputText = await callOpenAI(input);
+  let finalIssues = [];
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const issues = assessCopyQuality(outputText, body);
-    if (!issues.length) break;
+    finalIssues = issues;
+    if (!issues.length) {
+      finalIssues = [];
+      break;
+    }
     outputText = await callOpenAI([
       { role: "system", content: COPY_RULES },
       { role: "system", content: COPY_REFERENCES },
       { role: "user", content: buildRewritePrompt(body, outputText, issues) }
     ]);
+  }
+  finalIssues = assessCopyQuality(outputText, body);
+  if (finalIssues.length) {
+    const error = new Error(`Текст не прошел фильтр качества: ${finalIssues.join("; ")}. Нажмите “Сгенерировать текст” еще раз или уточните проблему/услугу.`);
+    error.status = 422;
+    throw error;
   }
 
   return outputText;
@@ -607,14 +646,25 @@ async function rewriteWithOpenAI(body) {
     { role: "user", content: buildInstructionRewritePrompt(body) }
   ]);
 
+  let finalIssues = [];
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const issues = assessCopyQuality(outputText, body);
-    if (!issues.length) break;
+    finalIssues = issues;
+    if (!issues.length) {
+      finalIssues = [];
+      break;
+    }
     outputText = await callOpenAI([
       { role: "system", content: COPY_RULES },
       { role: "system", content: COPY_REFERENCES },
       { role: "user", content: buildRewritePrompt(body, outputText, issues) }
     ]);
+  }
+  finalIssues = assessCopyQuality(outputText, body);
+  if (finalIssues.length) {
+    const error = new Error(`Исправленный текст не прошел фильтр качества: ${finalIssues.join("; ")}. Напишите правку проще или нажмите “Переделать текст” еще раз.`);
+    error.status = 422;
+    throw error;
   }
 
   return outputText;
@@ -761,13 +811,14 @@ async function handleApi(req, res) {
   }
 
   if (url.pathname === "/api/state" && req.method === "GET") {
-    sendJson(res, 200, readState());
+    sendJson(res, 200, stateForUser(readState(), user));
     return;
   }
 
   if (url.pathname === "/api/state" && req.method === "POST") {
-    const state = await readBody(req);
-    writeState(state);
+    const incomingState = await readBody(req);
+    const existingState = readState();
+    writeState(mergeStateForUser(existingState, incomingState, user));
     sendJson(res, 200, { ok: true });
     return;
   }
