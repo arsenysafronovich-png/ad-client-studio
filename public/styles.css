@@ -191,6 +191,16 @@ body[data-page="client"] .client-list {
   border-color: var(--ink);
 }
 
+.danger {
+  color: #b42318;
+  border-color: #f3b3ad;
+}
+
+.danger:hover {
+  background: #fff0ee;
+  border-color: #e5483f;
+}
+
 .page {
   display: none;
 }
@@ -271,6 +281,10 @@ select:focus {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+body[data-page="clients"] .client-actions {
+  display: none;
 }
 
 .grid {
