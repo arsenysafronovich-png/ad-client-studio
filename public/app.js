@@ -61,12 +61,13 @@ const elements = {
   dashboardPage: $("dashboardPage"),
   clientPage: $("clientPage"),
   dashboardPageButton: $("dashboardPageButton"),
-  clientPageButton: $("clientPageButton"),
   clientTableBody: $("clientTableBody"),
   buyerTableTitle: $("buyerTableTitle"),
   buyerTableCount: $("buyerTableCount"),
   clientSearch: $("clientSearch"),
+  pageEyebrow: $("pageEyebrow"),
   clientTitle: $("clientTitle"),
+  deleteClientButton: $("deleteClientButton"),
   clientStatusPill: $("clientStatusPill"),
   clientName: $("clientName"),
   clientMediaBuyer: $("clientMediaBuyer"),
@@ -257,7 +258,6 @@ function renderAll() {
   renderClientTable();
   const active = getActiveClient();
   if (!active) return;
-  elements.clientTitle.textContent = active.name;
   elements.clientStatusPill.textContent = active.status;
   elements.fileCount.textContent = `${active.files.length} файлов`;
   elements.reserveCount.textContent = `${(active.creativeReserve || []).length} пакетов`;
@@ -267,6 +267,7 @@ function renderAll() {
   renderReserve(active);
   renderLogs(active);
   renderProcess(active.process || []);
+  updateTopbar();
 }
 
 function visibleClients() {
@@ -1234,6 +1235,8 @@ function addSystemLog(client, type, note) {
 }
 
 function addClient() {
+  const shouldCreate = confirm("Вы хотите создать нового клиента?");
+  if (!shouldCreate) return;
   const active = getActiveClient();
   if (active) readForm(active);
   const client = defaultClient();
@@ -1248,13 +1251,42 @@ function addClient() {
   showPage("client");
 }
 
+function deleteActiveClient() {
+  const client = getActiveClient();
+  if (!client) return;
+  const name = client.name || "этого клиента";
+  const shouldDelete = confirm(`Удалить клиента “${name}”? Это действие нельзя отменить.`);
+  if (!shouldDelete) return;
+
+  state.clients = state.clients.filter((item) => item.id !== client.id);
+  if (!state.clients.length) {
+    const fallback = defaultClient();
+    state.clients.push(fallback);
+    state.activeId = fallback.id;
+  } else {
+    state.activeId = state.clients[0].id;
+  }
+
+  fillForm(getActiveClient());
+  persistOnly();
+  renderAll();
+  showPage("dashboard");
+}
+
 function showPage(page) {
   const isDashboard = page === "dashboard";
   document.body.dataset.page = isDashboard ? "clients" : "client";
   elements.dashboardPage.classList.toggle("active-page", isDashboard);
   elements.clientPage.classList.toggle("active-page", !isDashboard);
   elements.dashboardPageButton.classList.toggle("active", isDashboard);
-  elements.clientPageButton.classList.toggle("active", !isDashboard);
+  updateTopbar();
+}
+
+function updateTopbar() {
+  const isDashboard = document.body.dataset.page === "clients";
+  const active = getActiveClient();
+  elements.pageEyebrow.textContent = isDashboard ? "Клиенты" : "Карточка клиента";
+  elements.clientTitle.textContent = isDashboard ? "Все клиенты" : active?.name || "Новый клиент";
 }
 
 function formatBytes(bytes) {
@@ -1280,9 +1312,8 @@ $("newClientButton").addEventListener("click", addClient);
 $("loginForm").addEventListener("submit", handleLogin);
 $("logoutButton").addEventListener("click", logout);
 $("dashboardPageButton").addEventListener("click", () => showPage("dashboard"));
-$("clientPageButton").addEventListener("click", () => showPage("client"));
 $("saveButton").addEventListener("click", save);
-$("exportButton").addEventListener("click", exportData);
+$("deleteClientButton").addEventListener("click", deleteActiveClient);
 $("generateButton").addEventListener("click", generate);
 $("manualCheckButton").addEventListener("click", manualCheck);
 $("saveReserveButton").addEventListener("click", saveToReserve);
@@ -1296,7 +1327,9 @@ elements.fileInput.addEventListener("change", (event) => handleFiles([...event.t
 elements.clientSearch.addEventListener("input", renderClientList);
 elements.mediaBuyerSelect.addEventListener("change", renderClientList);
 elements.clientName.addEventListener("input", () => {
-  elements.clientTitle.textContent = elements.clientName.value || "Новый клиент";
+  if (document.body.dataset.page !== "clients") {
+    elements.clientTitle.textContent = elements.clientName.value || "Новый клиент";
+  }
 });
 elements.clientStatus.addEventListener("change", () => {
   elements.clientStatusPill.textContent = elements.clientStatus.value;
