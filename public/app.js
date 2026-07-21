@@ -76,12 +76,6 @@ const elements = {
   clientLanguage: $("clientLanguage"),
   clientLocation: $("clientLocation"),
   clientService: $("clientService"),
-  clientProblem: $("clientProblem"),
-  clientCta: $("clientCta"),
-  clientProofYears: $("clientProofYears"),
-  clientProofPeople: $("clientProofPeople"),
-  clientProofProblem: $("clientProofProblem"),
-  clientFacts: $("clientFacts"),
   clientBrief: $("clientBrief"),
   fileInput: $("fileInput"),
   fileList: $("fileList"),
@@ -221,12 +215,6 @@ function readForm(client) {
   client.language = elements.clientLanguage.value;
   client.location = elements.clientLocation.value.trim();
   client.service = elements.clientService.value.trim();
-  client.problem = elements.clientProblem.value.trim();
-  client.cta = elements.clientCta.value.trim();
-  client.proofYears = elements.clientProofYears.value.trim();
-  client.proofPeople = elements.clientProofPeople.value.trim();
-  client.proofProblem = elements.clientProofProblem.value.trim();
-  client.facts = elements.clientFacts.value.trim();
   client.brief = elements.clientBrief.value.trim();
   client.researchNotes = elements.researchNotes.value.trim();
   client.finalOutput = elements.finalOutput.value.trim();
@@ -241,12 +229,6 @@ function fillForm(client) {
   elements.clientLanguage.value = client.language || "ru";
   elements.clientLocation.value = client.location || "";
   elements.clientService.value = client.service || "";
-  elements.clientProblem.value = client.problem || "";
-  elements.clientCta.value = client.cta || "";
-  elements.clientProofYears.value = client.proofYears || "";
-  elements.clientProofPeople.value = client.proofPeople || "";
-  elements.clientProofProblem.value = client.proofProblem || "";
-  elements.clientFacts.value = client.facts || "";
   elements.clientBrief.value = client.brief || "";
   elements.researchNotes.value = client.researchNotes || "";
   elements.finalOutput.value = client.finalOutput || "";
@@ -1155,22 +1137,27 @@ function saveToReserve() {
 function startNewService() {
   const client = getActiveClient();
   if (!client) return;
+  const shouldStart = confirm("Клиент хочет запустить другую услугу? Текущая услуга, бриф и тексты очистятся, сам клиент останется.");
+  if (!shouldStart) return;
   readForm(client);
   client.service = "";
   client.problem = "";
   client.proofProblem = "";
+  client.brief = "";
   client.researchNotes = "";
   client.finalOutput = "";
   client.approvedText = "";
   client.productionStatus = "Новая услуга: нужен бриф";
   client.status = "Бриф";
   client.process = [
-    { title: "Новая услуга", body: "Очищены поля услуги, проблемы, интернет-проверки и финального текста. Остальные данные клиента сохранены." }
+    { title: "Новая услуга", body: "Очищены услуга, бриф, интернет-проверка и финальный текст. Клиент, таргетолог, ниша, язык, география, файлы и дневник сохранены." }
   ];
   addSystemLog(client, "Новая услуга", "Начат новый бриф услуги");
   fillForm(client);
   persistOnly();
   renderAll();
+  showPage("client");
+  elements.clientService.focus();
 }
 
 function approveText() {
