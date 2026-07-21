@@ -262,6 +262,7 @@ ${client.brief || ""}
 - Не пиши "не медуслуга", если это выглядит как юридическая отписка внутри рекламы. Лучше мягко сформулируй обещание.
 - Не пиши "поможем улучшить качество жизни", "индивидуальный подход", "комплексно", "профессионально", если это не привязано к конкретной ситуации.
 - Перед финальным ответом сравни каждый вариант с референсом нужной ниши. Если он слабее и более общий, перепиши.
+- Если текст звучит как обычный ChatGPT, салонная брошюра или "универсальная реклама для всех", это не финал. Перепиши до уровня референса.
 - Не показывай черновик.
 
 Верни структуру:
@@ -277,58 +278,6 @@ ${client.brief || ""}
 - Корявые фразы: [что переписано]
 `;
 }
-
-async function generateWithOpenAI(body) {
-  validateGenerationInput(body);
-
-  if (!process.env.OPENAI_API_KEY) {
-    const error = new Error("OPENAI_API_KEY не подключен");
-    error.status = 501;
-    throw error;
-  }
-
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-5",
-      tools: [{ type: "web_search" }],
-      input: [
-        { role: "system", content: COPY_RULES },
-        { role: "system", content: COPY_REFERENCES },
-        { role: "user", content: buildGenerationPrompt(body) }
-      ]
-    })
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    const error = new Error(data.error?.message || "OpenAI generation failed");
-    error.status = response.status;
-    throw error;
-  }
-
-  const outputText = data.output_text || (data.output || [])
-    .flatMap((item) => item.content || [])
-    .map((part) => part.text || "")
-    .filter(Boolean)
-    .join("\n");
-
-  return outputText.trim();
-}
-
-function sendJson(res, status, payload) {
-  const body = JSON.stringify(payload);
-  res.writeHead(status, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Content-Length": Buffer.byteLength(body)
-  });
-  res.end(body);
-}
-
 
 async function callOpenAI(input) {
   const response = await fetch("https://api.openai.com/v1/responses", {
@@ -460,6 +409,45 @@ ${buildGenerationPrompt(body)}
 `;
 }
 
+function buildInstructionRewritePrompt(body) {
+  const client = body.client || {};
+  const instruction = compact(body.instruction);
+  const currentText = compact(body.currentText);
+  return `
+Переделай уже готовый рекламный текст по комментарию таргетолога.
+
+Это не новая генерация с нуля. Нужно прочитать текущий текст, понять, что именно просят исправить, и вернуть улучшенную версию.
+
+Комментарий таргетолога:
+${instruction}
+
+Текущий текст:
+${currentText}
+
+Контекст клиента:
+Язык: ${client.language || "ru"}
+Ниша: ${client.niche || ""}
+Клиент/специалист: ${client.name || ""}
+География: ${client.location || ""}
+Услуга: ${client.service || ""}
+Бриф:
+${client.brief || ""}
+
+Обязательно:
+- Исправь именно то, что написано в комментарии.
+- Сохрани сильные куски текущего текста, если они не мешают правке.
+- Не меняй нишу, услугу, географию и язык.
+- Не добавляй новые обещания, которых нет в брифе.
+- Если комментарий просит нарушить стоп-краны, не нарушай. Сделай максимально близко, но безопасно.
+- Прогони результат через фильтр корявых фраз и стоп-краны.
+- Если текст был общим, перепиши его ближе к референсу нужной ниши.
+
+Верни только исправленный финальный текст и короткий блок:
+Что изменено:
+- [2-4 конкретных правки]
+`;
+}
+
 async function generateWithOpenAI(body) {
   validateGenerationInput(body);
 
@@ -488,6 +476,54 @@ async function generateWithOpenAI(body) {
   return outputText;
 }
 
+async function rewriteWithOpenAI(body) {
+  validateGenerationInput(body);
+
+  const instruction = compact(body.instruction);
+  const currentText = compact(body.currentText);
+  if (!currentText || currentText.length < 50) {
+    const error = new Error("Нет текста для редактирования");
+    error.status = 422;
+    throw error;
+  }
+  if (!instruction || instruction.length < 8) {
+    const error = new Error("Напишите, что именно нужно изменить в тексте");
+    error.status = 422;
+    throw error;
+  }
+
+  if (!process.env.OPENAI_API_KEY) {
+    const error = new Error("OPENAI_API_KEY не подключен");
+    error.status = 501;
+    throw error;
+  }
+
+  let outputText = await callOpenAI([
+    { role: "system", content: COPY_RULES },
+    { role: "system", content: COPY_REFERENCES },
+    { role: "user", content: buildInstructionRewritePrompt(body) }
+  ]);
+
+  const issues = assessCopyQuality(outputText, body);
+  if (issues.length) {
+    outputText = await callOpenAI([
+      { role: "system", content: COPY_RULES },
+      { role: "system", content: COPY_REFERENCES },
+      { role: "user", content: buildRewritePrompt(body, outputText, issues) }
+    ]);
+  }
+
+  return outputText;
+}
+
+function sendJson(res, status, payload) {
+  const body = JSON.stringify(payload);
+  res.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Length": Buffer.byteLength(body)
+  });
+  res.end(body);
+}
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -599,6 +635,13 @@ async function handleApi(req, res) {
   if (url.pathname === "/api/generate" && req.method === "POST") {
     const body = await readBody(req);
     const text = await generateWithOpenAI(body);
+    sendJson(res, 200, { text });
+    return;
+  }
+
+  if (url.pathname === "/api/rewrite" && req.method === "POST") {
+    const body = await readBody(req);
+    const text = await rewriteWithOpenAI(body);
     sendJson(res, 200, { text });
     return;
   }
