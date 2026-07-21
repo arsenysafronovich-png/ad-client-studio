@@ -17,6 +17,10 @@ const defaultClient = () => ({
   language: "ru",
   location: "",
   service: "",
+  price: "",
+  problems: "",
+  procedures: "",
+  notes: "",
   problem: "",
   cta: "",
   proofYears: "",
@@ -76,7 +80,10 @@ const elements = {
   clientLanguage: $("clientLanguage"),
   clientLocation: $("clientLocation"),
   clientService: $("clientService"),
-  clientBrief: $("clientBrief"),
+  clientPrice: $("clientPrice"),
+  clientProblems: $("clientProblems"),
+  clientProcedures: $("clientProcedures"),
+  clientNotes: $("clientNotes"),
   fileInput: $("fileInput"),
   fileList: $("fileList"),
   fileCount: $("fileCount"),
@@ -209,6 +216,18 @@ function getActiveClient() {
   return state.clients.find((client) => client.id === state.activeId);
 }
 
+function clientTextContext(client) {
+  return [
+    client.service,
+    client.problems,
+    client.problem,
+    client.procedures,
+    client.price,
+    client.notes,
+    client.brief
+  ].filter(Boolean).join(" ");
+}
+
 function readForm(client) {
   client.name = elements.clientName.value.trim() || "Новый клиент";
   client.mediaBuyer = elements.clientMediaBuyer.value;
@@ -217,7 +236,13 @@ function readForm(client) {
   client.language = elements.clientLanguage.value;
   client.location = elements.clientLocation.value.trim();
   client.service = elements.clientService.value.trim();
-  client.brief = elements.clientBrief.value.trim();
+  client.price = elements.clientPrice.value.trim();
+  client.problems = elements.clientProblems.value.trim();
+  client.procedures = elements.clientProcedures.value.trim();
+  client.notes = elements.clientNotes.value.trim();
+  client.problem = client.problems;
+  client.facts = [client.price && `Цены: ${client.price}`, client.procedures && `Процедуры/услуги: ${client.procedures}`].filter(Boolean).join("\n");
+  client.brief = client.notes;
   client.finalOutput = elements.finalOutput.value.trim();
   client.updatedAt = new Date().toISOString();
 }
@@ -234,7 +259,10 @@ function fillForm(client) {
   elements.clientLanguage.value = client.language || "ru";
   elements.clientLocation.value = client.location || "";
   elements.clientService.value = client.service || "";
-  elements.clientBrief.value = client.brief || "";
+  elements.clientPrice.value = client.price || "";
+  elements.clientProblems.value = client.problems || client.problem || "";
+  elements.clientProcedures.value = client.procedures || "";
+  elements.clientNotes.value = client.notes || client.brief || "";
   elements.finalOutput.value = client.finalOutput || "";
   elements.productionStatus.textContent = client.productionStatus || "Текст не одобрен";
 }
@@ -247,7 +275,10 @@ function clearForm() {
   elements.clientLanguage.value = "ru";
   elements.clientLocation.value = "";
   elements.clientService.value = "";
-  elements.clientBrief.value = "";
+  elements.clientPrice.value = "";
+  elements.clientProblems.value = "";
+  elements.clientProcedures.value = "";
+  elements.clientNotes.value = "";
   elements.finalOutput.value = "";
   elements.productionStatus.textContent = "Текст не одобрен";
 }
@@ -460,7 +491,7 @@ function getTemplateName(niche) {
 }
 
 function autoAngle(client) {
-  const service = `${client.service} ${client.problem} ${client.brief}`.toLowerCase();
+  const service = clientTextContext(client).toLowerCase();
   if (client.niche === "bodywork_pain" || /остеопат|мануаль|боль|колен|поясниц|спин|ше[ея]/i.test(service)) {
     if (service.includes("колен")) return "боль в колене мешает ходить, вставать и подниматься по лестнице";
     if (service.includes("поясниц")) return "боль в пояснице мешает нормально двигаться в течение дня";
@@ -479,7 +510,7 @@ function autoAngle(client) {
 }
 
 function anglePack(client) {
-  const service = `${client.service} ${client.problem} ${client.brief}`.toLowerCase();
+  const service = clientTextContext(client).toLowerCase();
   const customProblem = client.problem ? [client.problem] : [];
 
   if (client.niche === "repair") {
@@ -811,7 +842,7 @@ function crookedPhrasePass(text, client) {
   if (client.niche === "beauty_body") {
     cleaned = cleaned.replace(/похудеть за один сеанс/gi, "получить чудо за один сеанс");
   }
-  if (client.niche === "bodywork_pain" || /остеопат|мануаль/i.test(`${client.service} ${client.brief}`)) {
+  if (client.niche === "bodywork_pain" || /остеопат|мануаль/i.test(clientTextContext(client))) {
     cleaned = cleaned
       .replace(/оцениваю состояние кожи и подбираю режим процедуры/gi, "смотрю движение, нагрузку и то, где появляется боль")
       .replace(/выглядеть ровнее, подтянутее и легче в конкретной зоне/gi, "двигаться легче в обычной жизни")
@@ -915,7 +946,7 @@ async function generate() {
     return;
   } catch (error) {
     setGenerationBusy(false, "");
-    if (/Недостаточно брифа/i.test(error.message)) {
+    if (/Недостаточно брифа|Недостаточно данных/i.test(error.message)) {
       client.finalOutput = error.message;
       client.process = [
         {
@@ -925,11 +956,11 @@ async function generate() {
         },
         {
           title: "Что заполнить",
-          body: "В общий бриф напиши обычным текстом: что рекламируем, для кого, главную ситуацию/боль, гео, ограничения и любые факты клиента. Не нужно заполнять отдельную анкету."
+          body: "Заполните основные поля: услуга, проблемы, процедуры/услуги, география или цены. Примечания можно оставить пустыми."
         },
         {
           title: "Наши правила",
-          body: "Без брифа нельзя выбрать нормальный угол, проверить язык ниши и пройти фильтр корявых фраз."
+          body: "Без конкретной услуги и проблемы нельзя выбрать нормальный угол, проверить язык ниши и пройти фильтр корявых фраз."
         }
       ];
       fillForm(client);
@@ -1053,7 +1084,7 @@ async function rewriteTextWithInstruction() {
 
   setGenerationBusy(true, "Переделываю текст по комментарию. Читаю текущий вариант и правлю по вашим словам...");
   client.process = [
-    { title: "Редактирование", body: "Читаю текущий текст, комментарий таргетолога, бриф клиента и наши правила. Переписываю не с нуля, а по указанной правке." }
+    { title: "Редактирование", body: "Читаю текущий текст, комментарий таргетолога, данные по услуге и наши правила. Переписываю не с нуля, а по указанной правке." }
   ];
   fillForm(client);
   persistOnly();
@@ -1191,7 +1222,8 @@ async function handleFiles(files) {
 
     if (isTextReadable(file)) {
       record.text = await file.text();
-      client.brief = [client.brief, `\n\n[Файл: ${file.name}]\n${record.text.slice(0, 6000)}`].join("").trim();
+      client.notes = [client.notes || client.brief, `\n\n[Файл: ${file.name}]\n${record.text.slice(0, 6000)}`].filter(Boolean).join("").trim();
+      client.brief = client.notes;
     }
     client.files.push(record);
   }
@@ -1258,21 +1290,25 @@ function saveToReserve() {
 function startNewService() {
   const client = getActiveClient();
   if (!client) return;
-  const shouldStart = confirm("Клиент хочет запустить другую услугу? Текущая услуга, бриф и тексты очистятся, сам клиент останется.");
+  const shouldStart = confirm("Клиент хочет запустить другую услугу? Текущая услуга, проблемы, процедуры, цены и тексты очистятся, сам клиент останется.");
   if (!shouldStart) return;
   readForm(client);
   client.service = "";
   client.problem = "";
+  client.problems = "";
+  client.procedures = "";
+  client.price = "";
+  client.notes = "";
   client.proofProblem = "";
   client.brief = "";
   client.finalOutput = "";
   client.approvedText = "";
-  client.productionStatus = "Новая услуга: нужен бриф";
+  client.productionStatus = "Новая услуга: нужны данные";
   client.status = "Бриф";
   client.process = [
-    { title: "Новая услуга", body: "Очищены услуга, бриф, интернет-проверка и финальный текст. Клиент, таргетолог, ниша, язык, география, файлы и дневник сохранены." }
+    { title: "Новая услуга", body: "Очищены услуга, проблемы, процедуры, цены, примечания и финальный текст. Клиент, таргетолог, ниша, язык, география, файлы и дневник сохранены." }
   ];
-  addSystemLog(client, "Новая услуга", "Начат новый бриф услуги");
+  addSystemLog(client, "Новая услуга", "Начаты новые данные по услуге");
   fillForm(client);
   persistOnly();
   renderAll();
