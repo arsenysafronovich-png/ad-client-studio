@@ -87,6 +87,7 @@ const elements = {
   logNote: $("logNote"),
   productionStatus: $("productionStatus"),
   finalOutput: $("finalOutput"),
+  editInstruction: $("editInstruction"),
   processList: $("processList"),
   templateBadge: $("templateBadge"),
   adFormat: $("adFormat"),
@@ -997,6 +998,70 @@ async function generate() {
   renderAll();
 }
 
+async function rewriteTextWithInstruction() {
+  const client = getActiveClient();
+  if (!client) return;
+  readForm(client);
+  const instruction = elements.editInstruction.value.trim();
+  const currentText = client.finalOutput.trim();
+
+  if (!currentText) {
+    client.process = [
+      { title: "Нечего редактировать", body: "Сначала нужно сгенерировать текст. После этого можно написать, что именно исправить.", warning: true }
+    ];
+    persistOnly();
+    renderAll();
+    return;
+  }
+
+  if (!instruction) {
+    client.process = [
+      { title: "Нужен комментарий", body: "Напишите, что не устраивает: слабый хук, много воды, не тот угол, слишком мягко, слишком медицински, мало конкретики.", warning: true }
+    ];
+    persistOnly();
+    renderAll();
+    return;
+  }
+
+  client.process = [
+    { title: "Редактирование", body: "Читаю текущий текст, комментарий таргетолога, бриф клиента и наши правила. Переписываю не с нуля, а по указанной правке." }
+  ];
+  fillForm(client);
+  persistOnly();
+  renderAll();
+
+  try {
+    const data = await api("/api/rewrite", {
+      method: "POST",
+      body: JSON.stringify({
+        client,
+        currentText,
+        instruction,
+        format: elements.adFormat.value
+      })
+    });
+    client.finalOutput = hardStopCraneRewrite(data.text || "", client).text;
+    client.process = [
+      { title: "Комментарий учтен", body: `Правка: ${instruction}` },
+      { title: "Текущий текст прочитан", body: "Система редактировала существующий текст, а не запускала случайную новую генерацию." },
+      { title: "Фильтры", body: "После переписывания прошли стоп-краны, фильтр корявых фраз и проверка на общую рекламную кашу." },
+      { title: "Финал", body: "Исправленная версия заменяет текст в поле. Старую можно было заранее сохранить в запас." }
+    ];
+    elements.editInstruction.value = "";
+    fillForm(client);
+    persistOnly();
+    renderAll();
+  } catch (error) {
+    client.process = [
+      { title: "Не получилось переделать", body: error.message || "Сервер не вернул исправленную версию.", warning: true },
+      { title: "Что сделать", body: "Проверьте, что текст уже есть, комментарий заполнен, и попробуйте еще раз." }
+    ];
+    fillForm(client);
+    persistOnly();
+    renderAll();
+  }
+}
+
 function hebrewPlaceholder(client, angle) {
   return `Иврит-версия не сгенерирована в локальном прототипе.
 
@@ -1320,6 +1385,7 @@ $("saveButton").addEventListener("click", save);
 $("deleteClientButton").addEventListener("click", deleteActiveClient);
 $("generateButton").addEventListener("click", generate);
 $("manualCheckButton").addEventListener("click", manualCheck);
+$("rewriteTextButton").addEventListener("click", rewriteTextWithInstruction);
 $("saveReserveButton").addEventListener("click", saveToReserve);
 $("newServiceButton").addEventListener("click", startNewService);
 $("approveTextButton").addEventListener("click", approveText);
