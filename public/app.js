@@ -33,7 +33,6 @@ const defaultClient = () => ({
   files: [],
   creativeReserve: [],
   logs: [],
-  researchNotes: "",
   finalOutput: "",
   approvedText: "",
   productionStatus: "Текст не одобрен",
@@ -87,7 +86,6 @@ const elements = {
   logType: $("logType"),
   logNote: $("logNote"),
   productionStatus: $("productionStatus"),
-  researchNotes: $("researchNotes"),
   finalOutput: $("finalOutput"),
   processList: $("processList"),
   templateBadge: $("templateBadge"),
@@ -217,7 +215,6 @@ function readForm(client) {
   client.location = elements.clientLocation.value.trim();
   client.service = elements.clientService.value.trim();
   client.brief = elements.clientBrief.value.trim();
-  client.researchNotes = elements.researchNotes.value.trim();
   client.finalOutput = elements.finalOutput.value.trim();
   client.updatedAt = new Date().toISOString();
 }
@@ -235,7 +232,6 @@ function fillForm(client) {
   elements.clientLocation.value = client.location || "";
   elements.clientService.value = client.service || "";
   elements.clientBrief.value = client.brief || "";
-  elements.researchNotes.value = client.researchNotes || "";
   elements.finalOutput.value = client.finalOutput || "";
   elements.productionStatus.textContent = client.productionStatus || "Текст не одобрен";
 }
@@ -249,7 +245,6 @@ function clearForm() {
   elements.clientLocation.value = "";
   elements.clientService.value = "";
   elements.clientBrief.value = "";
-  elements.researchNotes.value = "";
   elements.finalOutput.value = "";
   elements.productionStatus.textContent = "Текст не одобрен";
 }
@@ -562,9 +557,6 @@ function anglePack(client) {
 }
 
 function researchLanguage(client) {
-  const notes = client.researchNotes.trim();
-  if (notes) return notes;
-
   if (client.language === "he" || client.language === "ru_he") {
     const hebrewNote = "Для иврита обязателен отдельный native phrase check: искать термины на иврите, не переводить русский шаблон дословно, проверять заголовки, услугу, боль, CTA и обещания как цельные фразы.";
     if (client.language === "he") return hebrewNote;
@@ -906,7 +898,7 @@ async function generate() {
         },
         {
           title: "Что заполнить",
-          body: "Минимум: конкретная услуга, одна главная проблема, география или факты. После этого можно запускать интернет-проверку и генерацию."
+          body: "В общий бриф напиши обычным текстом: что рекламируем, для кого, главную ситуацию/боль, гео, ограничения и любые факты клиента. Не нужно заполнять отдельную анкету."
         },
         {
           title: "Наши правила",
@@ -980,7 +972,7 @@ async function generate() {
     {
       title: "Интернет-проверка",
       body: research,
-      warning: !client.researchNotes.trim()
+      warning: false
     },
     {
       title: "Выбранный шаблон",
@@ -1176,7 +1168,6 @@ function startNewService() {
   client.problem = "";
   client.proofProblem = "";
   client.brief = "";
-  client.researchNotes = "";
   client.finalOutput = "";
   client.approvedText = "";
   client.productionStatus = "Новая услуга: нужен бриф";
