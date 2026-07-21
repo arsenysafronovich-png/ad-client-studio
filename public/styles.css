@@ -529,6 +529,27 @@ button.reserve-card {
   justify-self: start;
 }
 
+.action-status {
+  display: none;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.action-status.active {
+  display: block;
+}
+
+button.is-loading {
+  cursor: wait;
+  opacity: 0.76;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 .process {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
