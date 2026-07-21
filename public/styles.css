@@ -515,6 +515,20 @@ button.reserve-card {
   white-space: pre-wrap;
 }
 
+.edit-request {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.edit-request textarea {
+  min-height: 86px;
+}
+
+.edit-request button {
+  justify-self: start;
+}
+
 .process {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
