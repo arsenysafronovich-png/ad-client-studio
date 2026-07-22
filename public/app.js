@@ -510,7 +510,10 @@ function crookedPhrasePass(text, client) {
     }
   });
 
-  cleaned = cleaned.replace(/—/g, ".");
+  cleaned = cleaned
+    .replace(/\s*\(\[[^\]]{1,100}\]\(https?:\/\/[^)]+\)\)/gi, "")
+    .replace(/\[([^\]]{1,100})\]\(https?:\/\/[^)]+\)/gi, "$1")
+    .replace(/\s*—\s*/g, ", ");
 
   if (client.niche === "beauty_body") {
     cleaned = cleaned.replace(/похудеть за один сеанс/gi, "получить чудо за один сеанс");
@@ -852,6 +855,11 @@ function hardStopCraneRewrite(text, client) {
       .replace(/состояние кожи/gi, "движение и нагрузку")
       .replace(/подбираю режим/gi, "смотрю, откуда может идти нагрузка");
   }
+
+  cleaned = cleaned
+    .replace(/\s+([,.!?;:])/g, "$1")
+    .replace(/([,.!?;:]){2,}/g, "$1")
+    .replace(/[ \t]{2,}/g, " ");
 
   return {
     text: cleaned,
