@@ -277,6 +277,10 @@ function mergeStateForUser(existingState, incomingState, user) {
 
 function buildGenerationPrompt(body) {
   const client = body.client || {};
+  const format = body.format === "static" ? "Статика" : "Рилс";
+  const formatDirective = body.format === "static"
+    ? `Это статика. Пиши как текст для статичного креатива: сильный первый экран, 2-4 коротких смысловых блока, без сценарных ремарок, без озвучки, без таймингов.`
+    : `Это рилс. Пиши как короткий сценарий/текст для Reels: хук на первый экран, затем короткие фразы для кадров или озвучки. Без длинной простыни.`;
   const nicheContext = [
     client.niche,
     client.service,
@@ -302,7 +306,7 @@ function buildGenerationPrompt(body) {
 Сгенерируй рекламные тексты по правилам Арика. Не нарушай правила ради красивого текста.
 
 Количество вариантов: ${body.variantCount || 5}
-Формат: ${body.format || "Meta post"}
+Формат: ${format}
 Режим угла: ${body.angleMode || "auto"}
 Язык: ${client.language || "ru"}
 Ниша: ${client.niche || ""}
@@ -317,6 +321,9 @@ function buildGenerationPrompt(body) {
 
 Директива по нише:
 ${nicheDirective}
+
+Директива по формату:
+${formatDirective}
 
 Примечания. Это дополнительное поле, а не обязательный бриф. Используй только если оно заполнено:
 ${client.notes || client.brief || ""}
