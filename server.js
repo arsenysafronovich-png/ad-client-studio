@@ -535,7 +535,9 @@ function adTextOnly(text) {
 
 function sanitizeCopyOutput(text) {
   return String(text || "")
-    .replace(/—/g, ".")
+    .replace(/\s*\(\[[^\]]{1,100}\]\(https?:\/\/[^)]+\)\)/gi, "")
+    .replace(/\[([^\]]{1,100})\]\(https?:\/\/[^)]+\)/gi, "$1")
+    .replace(/\s*—\s*/g, ", ")
     .replace(/\bлеч(у|им|ит|ить)\b/gi, "работаю с состоянием")
     .replace(/\bлечени[ея]\b/gi, "работа с состоянием")
     .replace(/\bвылеч(у|им|ит|ить)\b/gi, "разобрать возможную причину")
@@ -556,7 +558,10 @@ function sanitizeCopyOutput(text) {
     .replace(/тянет\s+под\s+надколенником/gi, "болит в области колена")
     .replace(/почувствовать легкость/gi, "двигаться спокойнее")
     .replace(/получите консультацию/gi, "напишите в WhatsApp")
-    .replace(/путь к здоровью/gi, "следующий шаг");
+    .replace(/путь к здоровью/gi, "следующий шаг")
+    .replace(/\s+([,.!?;:])/g, "$1")
+    .replace(/([,.!?;:]){2,}/g, "$1")
+    .replace(/[ \t]{2,}/g, " ");
 }
 
 function blockingQualityIssues(issues) {
